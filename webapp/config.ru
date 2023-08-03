@@ -1,2 +1,2 @@
-require "/cms.rb"
+require "/main.rb"
 run Sinatra::Application
