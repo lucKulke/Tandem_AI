@@ -1,0 +1,100 @@
+body, html {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image: url('../images/background.png'); 
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.container-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.headline {
+  font-size: 4vw; /* Set the font size to 4% of the viewport width */
+  font-weight: bold;
+  margin-bottom: 2vh; /* Set the margin to 2% of the viewport height */
+  text-align: center;
+}
+
+.container {
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 4vh; /* Set the padding to 4% of the viewport height */
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  width: 50vw;
+  height: 50vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.elements {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  width: 80%; /* Set the width of the elements to 80% of the container's width */
+}
+
+
+.circle {
+  width: 40%; /* Set the circle width to 40% of the elements' width */
+  padding-bottom: 40%; /* Maintain aspect ratio */
+  background-color: #2ecc71;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  position: relative; /* Enable positioning for the icon */
+}
+
+.circle img {
+  width: 60%; /* Set the icon width to 60% of the circle's width */
+  height: auto; /* Maintain aspect ratio */
+  position: absolute; /* Position the icon absolutely within the circle */
+  top: 50%; /* Move the icon down by 50% of its height */
+  left: 50%; /* Move the icon right by 50% of its width */
+  transform: translate(-50%, -50%); /* Center the icon perfectly */
+}
+
+
+
+.recording {
+  background-color: #e74c3c;
+}
+
+.stopped {
+  background-color: #2ecc71;
+}
+
+.send-button {
+  margin-top: 5%; /* Set the margin-top to 5% of the elements' height */
+  padding: 3% 6%; /* Set the padding to 3% of the elements' width and 6% of the height */
+  background-color: #4362d2;
+  border: none;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.send-button:hover {
+  background-color: #4d85c1;
+}
+
+audio {
+  margin-top: 5%; /* Set the margin-top to 5% of the elements' height */
+  width: 100%;
+}
