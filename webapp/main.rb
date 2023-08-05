@@ -16,7 +16,7 @@ end
 
 Aws.config.update(
   region: 'eu-north-1',
-  credentials: Aws::Credentials.new(ENV["IAM_ACCESS_KEY"], ENV["IAM_SECRET_KEY"])
+  credentials: Aws::Credentials.new(ENV["IAM_USER_TEST_ACCESS_KEY"], ENV["IAM_USER_TEST_SECRET_ACCESS_KEY"])
 )
 
 
