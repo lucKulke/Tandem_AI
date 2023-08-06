@@ -7,6 +7,16 @@ require "aws-sdk-s3"
 require "securerandom"
 require "json"
 require "sinatra/cross_origin"
+require "mysql2"
+
+db_config = {
+  host: 'your_mysql_host',
+  username: 'your_mysql_username',
+  password: 'your_mysql_password',
+  database: 'your_mysql_database'
+}
+
+$db = Mysql2::Client.new(db_config)
 
 configure do
   enable :sessions
@@ -65,9 +75,14 @@ end
 
 
 get "/" do 
+  # if user not logged in redirect to login page
+  # else grap user_id + conversations from Database and create User obj with those values
   erb :home
 end
 
+# get "/:conversation" do
+#   erb :conversation
+# end 
 
 def generate_response_chat_gpt(conversation)
   response = OpenAI::ChatCompletion.create(
