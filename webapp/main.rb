@@ -1,5 +1,6 @@
 require "sinatra"
 require "sinatra/reloader"
+require "mysql2"
 require "tilt/erubis"
 require "redcarpet"
 require "fileutils"
@@ -7,20 +8,14 @@ require "aws-sdk-s3"
 require "securerandom"
 require "json"
 require "sinatra/cross_origin"
-require "mysql2"
 
-db_config = {
-  host: 'your_mysql_host',
-  username: 'your_mysql_username',
-  password: 'your_mysql_password',
-  database: 'your_mysql_database'
-}
+# require_relative "database_helper"
+# require_relative "user"
 
-$db = Mysql2::Client.new(db_config)
 
 configure do
   enable :sessions
-  set :session_secret, ENV['TANDEM_SESSION']
+  set :session_secret, ENV['TANDEM_SESSION_SECRET']
 end
 
 Aws.config.update(
@@ -28,14 +23,13 @@ Aws.config.update(
   credentials: Aws::Credentials.new(ENV["IAM_USER_TEST_ACCESS_KEY"], ENV["IAM_USER_TEST_SECRET_ACCESS_KEY"])
 )
 
-OpenAI.configure do |config|
-  config.access_token = 'YOUR_API_KEY'
-end
+# OpenAI.configure do |config|
+#   config.access_token = 'YOUR_API_KEY'
+# end
 
 CHAT_GPT_SYSTEM_MESSAGE = "You are a helpful assistant"
 
 # This endpoint generates a pre-signed URL and includes the filename in the response
-user = User.new
 
 post '/get_upload_url' do
   s3 = Aws::S3::Resource.new
@@ -54,9 +48,9 @@ post '/get_visper_result' do
 # get visper text
 
 # store text in user obj
-text = 'How are you?'
+#text = 'How are you?'
 # send text to chat gpt
-response = generate_response(conversation)
+#response = generate_response(conversation)
 # receive answer (text) from chat gpt
 
 # store text in user obj
@@ -75,14 +69,20 @@ end
 
 
 get "/" do 
+  redirect "/login" if session[:logged_in?] == true
   # if user not logged in redirect to login page
   # else grap user_id + conversations from Database and create User obj with those values
   erb :home
 end
 
-# get "/:conversation" do
-#   erb :conversation
-# end 
+get "/login" do
+  'login page'
+end
+
+get "/:conversation" do
+  erb :conversation
+end 
+
 
 def generate_response_chat_gpt(conversation)
   response = OpenAI::ChatCompletion.create(
