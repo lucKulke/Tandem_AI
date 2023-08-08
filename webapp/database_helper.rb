@@ -6,8 +6,8 @@ class DatabaseConnection
   DB_CONFIG = {
     host: 'localhost',
     port: '3206',
-    username: 'root',
-    password: 'halkopo2',
+    username: '****',
+    password: '****',
     database: 'tandem_ai'
   }
 
