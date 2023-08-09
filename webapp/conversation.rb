@@ -17,21 +17,37 @@ class Conversation
     self.conversation_text += "user: #{language_processing_ai[self.iteration][:input]}\nai: #{language_processing_ai[self.iteration][:output]}\n\n"
   end
 
-  def speech_recognition_transcription_ai_data(input_audio_file_ref, output, timestamp_input, timestamp_output, health_code)
-    @@speech_recognition_transcription_ai[self.iteration] = { input_audio_file_ref: input_audio_file_ref,
-                                                          output: output, timestamp_input: timestamp_input, timestamp_output: timestamp_output, health_code: health_code}
+
+  def speech_recognition_transcription_ai_data(audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)
+    @speech_recognition_transcription_ai[self.iteration] = {
+      speech_recognition_transcription_audio_file_key: audio_file_key,
+      speech_recognition_transcription_output: output_text,
+      speech_recognition_transcription_timestamp_input: timestamp_input,
+      speech_recognition_transcription_timestamp_output: timestamp_output,
+      speech_recognition_transcription_healthcode: healthcode
+    }
       
   end
 
-  def language_processing_ai_data(input, output, timestamp_input, timestamp_output, health_code)
-    @@language_processing_ai[self.iteration] = { input: input, output: output, timestamp_input: timestamp_input,
-                                             timestamp_output: timestamp_output, health_code: health_code}
+  def language_processing_ai_data(input_text, output_text, timestamp_input, timestamp_output, healthcode)
+    @language_processing_ai[self.iteration] = {
+      language_processing_input: input_text,
+      language_processing_output: output_text,
+      language_processing_timestamp_input: timestamp_input,
+      language_processing_timestamp_output:timestamp_output,
+      language_processing_healthcode: healthcode
+    }
 
   end
 
-  def voice_generator_ai_data(input, ouput_audio_file_ref, timestamp_input, timestamp_output, health_code)
-    @@voice_generator_ai[self.iteration] = { input: input, ouput_audio_file_ref: ouput_audio_file_ref, timestamp_input: timestamp_input,
-                                         timestamp_output: timestamp_output, health_code: health_code}
+  def voice_generator_ai_data(input_text, audio_file_key, timestamp_input, timestamp_output, healthcode)
+    @voice_generator_ai[self.iteration] = {
+      voice_generator_input: input_text,
+      voice_generator_audio_file_key: audio_file_key,
+      voice_generator_timestamp_input: timestamp_input,
+      voice_generator_timestamp_output: timestamp_output,
+      voice_generator_healthcode: healthcode
+    }
   end
   
 end
