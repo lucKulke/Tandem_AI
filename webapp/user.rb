@@ -13,10 +13,11 @@ class User
   end
 
   def create_conversation(db_connection)
+    conversation_name = 'new Conversation'
     uuid = db_connection.query('SELECT UUID();').first['UUID()']
-    start_text = "conversation start: \n"
-    db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation, timestamp_start) VALUES('#{self.user_id}', '#{uuid}', '#{start_text}', '#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}')")
-    new_conversation = Conversation.new(uuid, start_text)
+    start_text = "conversation start: "
+    db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation_name , conversation, timestamp_start) VALUES('#{self.user_id}', '#{uuid}', '#{conversation_name}', '#{start_text}', '#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}')")
+    new_conversation = Conversation.new(uuid, start_text, conversation_name)
     conversations << new_conversation
   end
 
@@ -63,13 +64,11 @@ class User
 
   def load_conversations(user_id, db_connection)
     return_format = []
-    result = db_connection.query("SELECT conversation_id, conversation
-                        FROM conversations
-                        WHERE user_id = '#{user_id}';")
+    result = db_connection.query("SELECT conversation_id, conversation_name, conversation FROM conversations WHERE user_id = '#{user_id}';")
     
     
     result.each do |row|
-      return_format << Conversation.new(row['conversation_id'], row['conversation'])
+      return_format << Conversation.new(row['conversation_id'], row['conversation'], row['conversation_name'])
     end
     return_format
   end
@@ -93,7 +92,7 @@ class User
 
   def upload_conversation_to_db(conversation_id, db_connection)
     # loads each iteration in each ai table
-    p "conversation_id for upload #{conversation_id}"
+
     iteration_id = create_uuid(db_connection)
     data = current_conversation.conversation_data
     db_connection.query("INSERT INTO speech_recognition_transcription_ai
@@ -104,17 +103,13 @@ class User
                         '#{data[:speech_recognition_transcription_ai_timestamp_input]}', 
                         '#{data[:speech_recognition_transcription_ai_timestamp_output]}',
                         '#{data[:speech_recognition_transcription_ai_healthcode].to_i}');")
-    
-    db_connection.query("INSERT INTO language_processing_ai
-                        (user_id, iteration_id, conversation_id, input_text, output_text, timestamp_input, timestamp_output, healthcode)
-                        VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}',
-                        '#{data[:language_processing_ai_input_text]}',
-                        '#{data[:language_processing_ai_output_text]}',
-                        '#{data[:language_processing_ai_timestamp_input]}', 
-                        '#{data[:language_processing_ai_timestamp_output]}',
-                        '#{data[:language_processing_ai_healthcode].to_i}');")
-                        
                                       
+    input_text = db_connection.escape(data[:language_processing_ai_input_text])
+    output_text = db_connection.escape(data[:language_processing_ai_output_text])
+    db_connection.query("INSERT INTO language_processing_ai (user_id, iteration_id, conversation_id, input_text, output_text, timestamp_input, timestamp_output, healthcode) 
+    VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}', '#{input_text}', '#{output_text}', '#{data[:language_processing_ai_timestamp_input]}', '#{data[:language_processing_ai_timestamp_output]}', '#{data[:language_processing_ai_healthcode].to_i}');")
+                        
+                   
     db_connection.query("INSERT INTO voice_generator_ai
                         (user_id, iteration_id, conversation_id, input_text, audio_file_key, timestamp_input, timestamp_output, healthcode)
                         VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}',
@@ -125,9 +120,11 @@ class User
                         '#{data[:voice_generator_ai_healthcode].to_i}');")
 
     # update conversation table 
-    db_connection.query("UPDATE conversations SET conversation = '#{current_conversation.conversation_text}' WHERE conversation_id = '#{conversation_id}';")
+    
+    db_connection.query("UPDATE conversations SET conversation = '#{current_conversation.conversation_text}', conversation_name = '#{current_conversation.name}' WHERE conversation_id = '#{conversation_id}';")
+    p "moin"
   end
-end
+end 
 
 class ActiveUserList
   attr_accessor :list

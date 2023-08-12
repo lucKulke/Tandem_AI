@@ -92,8 +92,9 @@ $(document).ready(function() {
           console.log(`incomming conversation text${data['conversation_text']}`)
           document.getElementById('user_text').textContent = data['user_text'];
           document.getElementById('ai_answer').textContent = data['ai_answer'];
-          const historyElement = document.getElementById('history').textContent;
-          const formattedConversation = formatConversation(data['conversation_text']);
+          var conversation_text = data['conversation_text'];
+          var historyElement = document.getElementById('history');
+          var formattedConversation = formatConversation(conversation_text);
           historyElement.innerHTML = formattedConversation;
           // Check if the specific key value pair exists to stop the loop
           console.log(data)

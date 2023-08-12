@@ -29,6 +29,7 @@ class DatabaseConnection
     @db.query("CREATE TABLE IF NOT EXISTS conversations(
       user_id VARCHAR(50),
       conversation_id VARCHAR(50),
+      conversation_name VARCHAR(50),
       conversation MEDIUMTEXT,
       timestamp_start DATETIME,
       timestamp_paused DATETIME,
@@ -41,7 +42,7 @@ class DatabaseConnection
       iteration_id VARCHAR(50),
       conversation_id VARCHAR(50),
       audio_file_key VARCHAR(255),
-      output_text VARCHAR(1000),
+      output_text VARCHAR(2000),
       timestamp_input DATETIME,
       timestamp_output DATETIME,
       healthcode INT);")
@@ -50,8 +51,8 @@ class DatabaseConnection
       user_id VARCHAR(50),
       iteration_id VARCHAR(50),
       conversation_id VARCHAR(50),
-      input_text VARCHAR(1000),
-      audio_file_key VARCHAR(1000),
+      input_text VARCHAR(2000),
+      audio_file_key VARCHAR(2000),
       timestamp_input DATETIME,
       timestamp_output DATETIME,
       healthcode INT);")
@@ -60,8 +61,8 @@ class DatabaseConnection
       user_id VARCHAR(50),
       iteration_id VARCHAR(50),
       conversation_id VARCHAR(50),
-      input_text VARCHAR(1000),
-      output_text VARCHAR(1000),
+      input_text VARCHAR(2000),
+      output_text VARCHAR(2000),
       timestamp_input DATETIME,
       timestamp_output DATETIME,
       healthcode INT);")

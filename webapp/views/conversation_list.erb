@@ -3,7 +3,7 @@
 <ul>
 
 <% @user.conversations.each do |conversation|%>
-  <li><a href="conversation/<%= conversation.conversation_id %>">conversation<a></li>
+  <li><a href="conversation/<%= conversation.conversation_id %>"><%=conversation.name%><a></li>
 <% end %>
 </ul>
 

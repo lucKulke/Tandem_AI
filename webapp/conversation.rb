@@ -1,11 +1,12 @@
 class Conversation
   attr_accessor :iteration, :speech_recognition_transcription_ai, :language_processing_ai, :voice_generator_ai, 
-                :conversation_text,
+                :conversation_text, :name,
                 :conversation_data, :conversation_id
   
-  def initialize(conversation_id, conversation_text)
+  def initialize(conversation_id, conversation_text, conversation_name)
     @conversation_id = conversation_id
-    @conversation_text = conversation_text 
+    @conversation_text = conversation_text
+    @name = conversation_name
     reset
   end
 

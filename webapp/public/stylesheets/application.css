@@ -43,9 +43,7 @@ body {
   overflow-y: scroll;
 }
 
-.history-entry {
-  padding: 5px;
-}
+
 
 .user {
   color: #0084ff;
