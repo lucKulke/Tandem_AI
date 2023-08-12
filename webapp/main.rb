@@ -23,7 +23,9 @@ language_processing_ai = LanguageProcessingAI.new
 
 voice_generator_ai = VoiceGeneratorAI.new
 
-db_connection = DatabaseConnection.new.establish
+db_connection = DatabaseConnection.new.create_tables
+
+active_user_list = ActiveUserList.new
 
 access_key = ENV['AWS_IAM_USER_TEST_ACCESS_KEY']
 secret_key = ENV['AWS_IAM_USER_TEST_SECRET_ACCESS_KEY']
@@ -39,20 +41,23 @@ configure do
 end
 
 
-get "/" do 
-  if session[:user].nil?
-    session[:user] = User.new('Max', 'Mustermann', 'example@gmail.com', db_connection)
-  end
+
+get "/" do
+
+  user_id = active_user_list.add_user('Max', 'Mustermann', 'example@gmail.com', db_connection)
+  session[:user_id] = user_id
+
   erb :home
 end
 
 get "/conversation_list" do 
-  iteration_information_obj.delete_iteration_temp_storage(session[:user].user_id)
+  @user = active_user_list.load_user(session[:user_id])
+  iteration_information_obj.delete_iteration_temp_storage(@user.user_id)
   erb :conversation_list
 end
 
 get "/conversation/update_status" do 
-  user = session[:user]
+  user = active_user_list.load_user(session[:user_id])
   user.update_conversation_data(iteration_information_obj)
   
   content_type :json
@@ -60,31 +65,42 @@ get "/conversation/update_status" do
 end
 
 get "/conversation/:conversation_id" do
-  user = session[:user]
-  user.enter_conversation(params['conversation_id'])
+  @user = active_user_list.load_user(session[:user_id])
+  @user.enter_conversation(params['conversation_id'])
+  @conversation = format_conversation(@user.current_conversation.conversation_text)
 
   erb :conversation
 end 
 
-
-get '/audio_files/:audio_file' do
-  user = session[:user] 
-  user.upload_conversation_to_db(user.current_conversation_id, db_connection)
-  send_file "audio_files/#{params['audio_file']}", type: 'audio/wav'
+get "/iteration_end" do
+  if request.env['HTTP_ITERATION_END'] == 'true'
+    user = active_user_list.load_user(session[:user_id]) 
+    user.upload_conversation_to_db(user.current_conversation_id, db_connection)
+  end
+  status 201
 end
+
+
+get '/audio_file/:audio_file' do
+  # user = active_user_list.load_user(session[:user_id]) 
+  # user.upload_conversation_to_db(user.current_conversation_id, db_connection)
+  send_file "./public/audio_files/#{params['audio_file']}", type: 'audio/wav'
+end
+
+
 
 
 
 get "/get_upload_url_for_client" do
   # start iteration
-  user = session[:user]
+  user = active_user_list.load_user(session[:user_id])
   user.current_conversation.reset
   iteration_information_obj.delete_iteration_temp_storage(user.user_id)
   iteration_information_obj.create_iteration_temp_storage(user.user_id, user.current_conversation.conversation_text)
   
   file_name = "recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
   
-  url_and_filename = aws_s3_connection.get_presigned_url_s3(file_name, 'uploads')
+  url_and_filename = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client')
 
   iteration_information_obj.bucket[user.user_id][:speech_recognition_transcription_ai_audio_file_key] = file_name
   content_type :json
@@ -92,7 +108,9 @@ get "/get_upload_url_for_client" do
 end
 
 post "/conversation/create" do 
-  session[:user].create_conversation(db_connection)
+  user = active_user_list.load_user(session[:user_id])
+  user.create_conversation(db_connection)
+  redirect '/conversation_list'
 end
 
 
@@ -115,8 +133,7 @@ post '/speech_recognition_transcription_ai_result' do
   voice_generator_ai_audio_file = voice_generator_ai_process(iteration_information_obj, language_processing_ai_output_text, user_id)
   # store audiofile to audio_files folder
  
-
-  # aws_s3_connection.upload_audio_file(voice_generator_ai_audio_file)
+  aws_s3_connection.upload_audio_file(voice_generator_ai_audio_file)
   
   status 201
 end
@@ -151,24 +168,24 @@ end
 
 def language_processing_ai_process(iteration_information_obj, input_text, user_id, language_processing_ai)
 
-  input_text = iteration_information_obj.bucket[user_id][:conversation_text] += "user: #{input_text}"
+  input_text_with_context = iteration_information_obj.bucket[user_id][:conversation_text] += " User: #{input_text} "
 
   conversation = [
     {role: "system", content: "You are a helpful assistant"},
-    {role: "user", content: input_text}
+    {role: "user", content: input_text_with_context}
   ]
 
   timestamp_input = DateTime.now
   response = language_processing_ai.generate_response(conversation)
   timestamp_output = DateTime.now
-
+  response
   healthcode = 200
   
   if response.is_a? Array
     healthcode = response[0]
     response = response[1]
   else
-    iteration_information_obj.bucket[user_id][:conversation_text] += "system: #{response}"
+    iteration_information_obj.bucket[user_id][:conversation_text] += (' ' + response)
 
   end
   
@@ -195,12 +212,28 @@ def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
     audio_file_key: response,
     timestamp_input: timestamp_input,
     timestamp_output: timestamp_output,
-    healthcode: nil
+    healthcode: 200
   )
 
 
   response #filter audio_file_key
 
+end
+
+def format_conversation(conversation)
+  formated_version = conversation[0..19] + "<br>"
+  conversation[20..-1].split(' ').each do |word|
+  
+    if word == 'User:' 
+      formated_version += ("<br><br>" + word)
+    elsif word == 'Assistant:' || word == 'Assistent:'
+      formated_version += ("<br><br>" + word)
+    else
+      formated_version += (' ' + word)
+    end
+  end
+  formated_version
+  
 end
 
 

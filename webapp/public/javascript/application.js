@@ -12,8 +12,7 @@ $(document).ready(function() {
   let mediaRecorder;
   
   recordButton.on('click', async () => {
-    document.getElementById('user_text').textContent = '';
-    document.getElementById('ai_answer').textContent = '';
+   
     audioChunks = [];
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -42,6 +41,8 @@ $(document).ready(function() {
   });
   
   uploadButton.on('click', async () => {
+    document.getElementById('user_text').textContent = '';
+    document.getElementById('ai_answer').textContent = '';
      if (audioChunks.length === 0) {
       alert('No recording to upload.');
       return;
@@ -70,7 +71,6 @@ $(document).ready(function() {
         body: audioBlob,
         headers: {
           'Content-Type' : 'audio/wav'
-          //'Content-Disposition': `attachment; filename="${filename}"`,
         },
       });
       
@@ -89,9 +89,12 @@ $(document).ready(function() {
         .then(data => {
           // Update your client view with the latest data from the server
           // This could involve updating the UI, showing new messages, etc.
-          
+          console.log(`incomming conversation text${data['conversation_text']}`)
           document.getElementById('user_text').textContent = data['user_text'];
           document.getElementById('ai_answer').textContent = data['ai_answer'];
+          const historyElement = document.getElementById('history').textContent;
+          const formattedConversation = formatConversation(data['conversation_text']);
+          historyElement.innerHTML = formattedConversation;
           // Check if the specific key value pair exists to stop the loop
           console.log(data)
           console.log(data['audio_file_key'])
@@ -109,23 +112,51 @@ $(document).ready(function() {
 
   function downloadAndPlayAudio(audio_file_name) {
     // Initiate a GET request to download the audio file
-    fetch(`/audio_files/${audio_file_name}`)
+    fetch(`/audio_file/${audio_file_name}`)
       .then(response => response.blob())
       .then(blob => {
         // Create a Blob URL for the downloaded audio file
         const audioBlobUrl = URL.createObjectURL(blob);
         
         // Play the audio
+        sendIterationEnd(audio_file_name)
         playAudio(audioBlobUrl);
       })
       .catch(error => {
         console.error('Error downloading audio:', error);
       });
   }
+
+  function sendIterationEnd(audio_file_name){
+    fetch('/iteration_end', {
+      method: 'GET',
+      headers: {
+        'Iteration_end' : 'true'
+      }
+    });}
   
   function playAudio(audioUrl) {
     audioPlayer.attr('src', audioUrl);
     audioPlayer.show();
     audioPlayer[0].play();
+  }
+
+  function formatConversation(conversation) {
+    const words = conversation.split(' ');
+    let formattedVersion = words.slice(0, 20).join(' ') + "<br>";
+  
+    for (let i = 20; i < words.length; i++) {
+      const word = words[i];
+  
+      if (word === 'User:') {
+        formattedVersion += "<br><br>" + word;
+      } else if (word === 'Assistant:' || word === 'Assistent:') {
+        formattedVersion += "<br><br>" + word;
+      } else {
+        formattedVersion += ' ' + word;
+      }
+    }
+  
+    return formattedVersion;
   }
 });

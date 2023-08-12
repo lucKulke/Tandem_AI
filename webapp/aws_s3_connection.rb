@@ -9,15 +9,15 @@ class AwsS3
     )
   end
 
-  def upload_audio_file(file_name_key)
+  def upload_audio_file(file_name)
     
-    file_path = "./audio_files/#{file_name}"
+    file_path = "./public/audio_files/#{file_name}"
     file_content = File.read(file_path)
     begin
       s3_client = Aws::S3::Client.new
       s3_client.put_object(
         bucket: bucket_name,
-        key: "#{file_name_key}.wav",
+        key: "upload_ai/#{file_name}",
         body: file_content
         )
     rescue Aws::S3::Errors::NetworkError, Timeout::Error => e

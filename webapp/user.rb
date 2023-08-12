@@ -3,8 +3,8 @@ require_relative './database/database_connection'
 require 'date'
 
 class User
-  attr_accessor :current_conversation, :current_conversation_id
-  attr_reader :user_id, :conversations
+  attr_accessor :current_conversation, :current_conversation_id, :conversations
+  attr_reader :user_id
 
   def initialize(first_name, surname, email, db_connection)
     @user_id = load_user_data(first_name, surname, email, db_connection)
@@ -54,6 +54,7 @@ class User
     user_id = search_user_id(first_name, surname, email, db_connection)
     if user_id.empty?
       user_id = create_user_in_db(first_name, surname, email, db_connection)
+      @conversations = []
     else
       @conversations = load_conversations(user_id, db_connection)
     end
@@ -92,7 +93,7 @@ class User
 
   def upload_conversation_to_db(conversation_id, db_connection)
     # loads each iteration in each ai table
-    
+    p "conversation_id for upload #{conversation_id}"
     iteration_id = create_uuid(db_connection)
     data = current_conversation.conversation_data
     db_connection.query("INSERT INTO speech_recognition_transcription_ai
@@ -102,7 +103,7 @@ class User
                         '#{data[:speech_recognition_transcription_ai_output_text]}',
                         '#{data[:speech_recognition_transcription_ai_timestamp_input]}', 
                         '#{data[:speech_recognition_transcription_ai_timestamp_output]}',
-                        '#{data[:speech_recognition_transcription_ai_healthcode]}');")
+                        '#{data[:speech_recognition_transcription_ai_healthcode].to_i}');")
     
     db_connection.query("INSERT INTO language_processing_ai
                         (user_id, iteration_id, conversation_id, input_text, output_text, timestamp_input, timestamp_output, healthcode)
@@ -111,7 +112,7 @@ class User
                         '#{data[:language_processing_ai_output_text]}',
                         '#{data[:language_processing_ai_timestamp_input]}', 
                         '#{data[:language_processing_ai_timestamp_output]}',
-                        '#{data[:language_processing_ai_healthcode]}');")
+                        '#{data[:language_processing_ai_healthcode].to_i}');")
                         
                                       
     db_connection.query("INSERT INTO voice_generator_ai
@@ -121,9 +122,28 @@ class User
                         '#{data[:voice_generator_ai_audio_file_key]}',
                         '#{data[:voice_generator_ai_timestamp_input]}', 
                         '#{data[:voice_generator_ai_timestamp_output]}',
-                        '#{data[:voice_generator_ai_healthcode]}');")
+                        '#{data[:voice_generator_ai_healthcode].to_i}');")
 
     # update conversation table 
     db_connection.query("UPDATE conversations SET conversation = '#{current_conversation.conversation_text}' WHERE conversation_id = '#{conversation_id}';")
   end
+end
+
+class ActiveUserList
+  attr_accessor :list
+
+  def initialize
+    @list = {}
+  end
+
+  def add_user(first_name, surname, email, db_connection)
+    user = User.new(first_name, surname, email, db_connection)
+    @list[user.user_id] = user
+    user.user_id
+  end
+
+  def load_user(user_id)
+    list[user_id]
+  end
+
 end

@@ -18,12 +18,11 @@ class LanguageProcessingAI
     payload = {
       model: 'gpt-3.5-turbo',
       messages: conversation,
-      max_tokens: 100
+      max_tokens: 500
     }
 
     response = http.post(uri.path, payload.to_json, headers)
     response_body = JSON.parse(response.body)
-
     response_body['choices'][0]['message']['content']
   end
 end
