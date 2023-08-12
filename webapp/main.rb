@@ -67,7 +67,9 @@ get "/conversation/:conversation_id" do
 end 
 
 
-get '/audio_files/:audio_file' do  
+get '/audio_files/:audio_file' do
+  user = session[:user] 
+  user.upload_conversation_to_db(user.current_conversation_id, db_connection)
   send_file "audio_files/#{params['audio_file']}", type: 'audio/wav'
 end
 
@@ -149,7 +151,7 @@ end
 
 def language_processing_ai_process(iteration_information_obj, input_text, user_id, language_processing_ai)
 
-  #conversation = iteration_information_obj.bucket[user_id][:conversation] + input_text
+  input_text = iteration_information_obj.bucket[user_id][:conversation_text] += "user: #{input_text}"
 
   conversation = [
     {role: "system", content: "You are a helpful assistant"},
@@ -165,6 +167,9 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
   if response.is_a? Array
     healthcode = response[0]
     response = response[1]
+  else
+    iteration_information_obj.bucket[user_id][:conversation_text] += "system: #{response}"
+
   end
   
   iteration_information_obj.save_language_processing_ai_data(

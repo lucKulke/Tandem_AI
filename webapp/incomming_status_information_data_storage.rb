@@ -6,7 +6,7 @@ class IncommingStatusInformationData
   end
   
   def create_iteration_temp_storage(user_id, conversation)
-    self.bucket[user_id] = {conversation: conversation} 
+    self.bucket[user_id] = {conversation_text: conversation} 
   end
 
   def delete_iteration_temp_storage(user_id)

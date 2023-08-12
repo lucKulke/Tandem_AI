@@ -38,7 +38,11 @@ class User
 
   def update_conversation_data(iteration_information_obj)
     iteration_information_obj.bucket[user_id].each do |key, value|
-      current_conversation.conversation_data[key] = value
+      if key == :conversation_text
+        current_conversation.conversation_text = value
+      else
+        current_conversation.conversation_data[key] = value
+      end
     end
   end
 
