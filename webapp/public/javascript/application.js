@@ -14,6 +14,7 @@ $(document).ready(function() {
   recordButton.on('click', async () => {
     document.getElementById('user_text').textContent = '';
     document.getElementById('ai_answer').textContent = '';
+    audioChunks = [];
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       mediaRecorder = new MediaRecorder(stream);

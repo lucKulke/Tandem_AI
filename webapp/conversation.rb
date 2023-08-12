@@ -31,7 +31,6 @@ end
 
 
   def client_information
-    p self.conversation_data[:speech_recognition_transcription_ai_output_text]
     {audio_file_key: self.conversation_data[:voice_generator_ai_audio_file_key], user_text: self.conversation_data[:speech_recognition_transcription_ai_output_text], ai_answer: self.conversation_data[:language_processing_ai_output_text], conversation_text: conversation_text}
   end
 

@@ -25,28 +25,13 @@ voice_generator_ai = VoiceGeneratorAI.new
 
 db_connection = DatabaseConnection.new.establish
 
+access_key = ENV['AWS_IAM_USER_TEST_ACCESS_KEY']
+secret_key = ENV['AWS_IAM_USER_TEST_SECRET_ACCESS_KEY']
+region = ENV['AWS_S3_REGION']
+bucket_name = ENV['AWS_S3_BUCKET_NAME']
 
+aws_s3_connection = AwsS3.new(bucket_name: bucket_name, region: region, access_key: access_key, secret_key: secret_key)
 
-
-def generate_s3_response(file_name, folder)
-  access_key = ENV['AWS_IAM_USER_TEST_ACCESS_KEY']
-  secret_key = ENV['AWS_IAM_USER_TEST_SECRET_ACCESS_KEY']
-  region = ENV['AWS_S3_REGION']
-  bucket_name = ENV['AWS_S3_BUCKET_NAME']
-  
-  Aws.config.update(
-    region: region,
-    credentials: Aws::Credentials.new(access_key, secret_key)
-  )
-  s3 = Aws::S3::Resource.new
-   # Generate a unique filename
-
-  obj = s3.bucket(bucket_name).object("#{folder}/#{file_name}")
-  
-  url = obj.presigned_url(:put, expires_in: 3600) # URL expires in 1 hour
-  
-  { url: url , file_name: file_name}
-end
 
 configure do
   enable :sessions
@@ -54,8 +39,6 @@ configure do
 end
 
 
-
-# This endpoint generates a pre-signed URL and includes the filename in the response
 get "/" do 
   if session[:user].nil?
     session[:user] = User.new('Max', 'Mustermann', 'example@gmail.com', db_connection)
@@ -84,8 +67,7 @@ get "/conversation/:conversation_id" do
 end 
 
 
-get '/audio_files/:audio_file' do 
-  
+get '/audio_files/:audio_file' do  
   send_file "audio_files/#{params['audio_file']}", type: 'audio/wav'
 end
 
@@ -100,7 +82,7 @@ get "/get_upload_url_for_client" do
   
   file_name = "recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
   
-  url_and_filename = generate_s3_response(file_name, 'uploads')
+  url_and_filename = aws_s3_connection.get_presigned_url_s3(file_name, 'uploads')
 
   iteration_information_obj.bucket[user.user_id][:speech_recognition_transcription_ai_audio_file_key] = file_name
   content_type :json
