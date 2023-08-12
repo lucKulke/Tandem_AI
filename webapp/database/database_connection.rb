@@ -4,11 +4,11 @@ class DatabaseConnection
   attr_reader :establish
 
   DB_CONFIG = {
-    host: 'localhost',
-    port: '3206',
-    username: 'root',
-    password: 'halkopo2',
-    database: 'tandem_ai'
+    host: ENV['DB_HOST'],
+    port: ENV['DB_PORT'],
+    username: ENV['DB_USERNAME'],
+    password: ENV['DB_PASSWORD'],
+    database: ENV['DB_NAME']
   }
 
   def initialize

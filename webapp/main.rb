@@ -52,7 +52,9 @@ end
 
 get "/conversation_list" do 
   @user = active_user_list.load_user(session[:user_id])
-  iteration_information_obj.delete_iteration_temp_storage(@user.user_id)
+  if !iteration_information_obj.bucket[@user.user_id].nil?
+    iteration_information_obj.delete_iteration_temp_storage(@user.user_id)
+  end
   erb :conversation_list
 end
 
@@ -197,6 +199,8 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
     timestamp_output: timestamp_output,
     healthcode: healthcode
   )
+
+  response
   
 end
 
@@ -223,7 +227,6 @@ end
 def format_conversation(conversation)
   formated_version = conversation[0..19] + "<br>"
   conversation[20..-1].split(' ').each do |word|
-  
     if word == 'User:' 
       formated_version += ("<br><br>" + word)
     elsif word == 'Assistant:' || word == 'Assistent:'
@@ -233,7 +236,6 @@ def format_conversation(conversation)
     end
   end
   formated_version
-  
 end
 
 
