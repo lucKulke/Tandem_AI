@@ -1,0 +1,29 @@
+ <a href="/conversation_list">Back to Conversation List</a>
+ <div class="container">
+        <div class="controls">
+            <button id="recordButton">Start Recording</button>
+            <button id="stopButton">Stop Recording</button>
+            <button id="uploadButton">Send</button>
+        </div>
+        <div class="conversation">
+            <div class="message-box user">
+                <p id="user_text"></p>
+            </div>
+            <div class="message-box gpt">
+                <p id="ai_answer"></p>
+            </div>
+            <div class="conversation-history">
+                <p><%= session[:user].current_conversation.conversation_text %></p>
+                <!-- More conversation history entries will go here -->
+            </div>
+        </div>
+</div>
+<div class="audioPlayer">
+  <audio controls id="audioPlayer" style="display:none;"></audio>
+</div>
+
+<form action="/conversation/<%=session[:user].current_conversation_id%>/save" method="Post">
+  <button type="submit">Save Conversation</button>
+</form>
+
+

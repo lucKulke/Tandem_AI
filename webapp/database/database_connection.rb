@@ -6,8 +6,8 @@ class DatabaseConnection
   DB_CONFIG = {
     host: 'localhost',
     port: '3206',
-    username: '****',
-    password: '****',
+    username: 'root',
+    password: 'halkopo2',
     database: 'tandem_ai'
   }
 
@@ -18,8 +18,56 @@ class DatabaseConnection
   def establish
     @db
   end
+
+  def create_tables
+    @db.query("CREATE TABLE IF NOT EXISTS users(
+      user_id VARCHAR(50),
+      first_name VARCHAR(100),
+      surname VARCHAR(100),
+      email VARCHAR(300));")
+    
+    @db.query("CREATE TABLE IF NOT EXISTS conversations(
+      user_id VARCHAR(50),
+      conversation_id VARCHAR(50),
+      conversation MEDIUMTEXT,
+      timestamp_start DATETIME,
+      timestamp_paused DATETIME,
+      timestamp_joined DATETIME,
+      timestamp_deleted DATETIME,
+      status_code INT);")
+    
+    @db.query("CREATE TABLE IF NOT EXISTS speech_recognition_transcription_ai(
+      user_id VARCHAR(50),
+      iteration_id VARCHAR(50),
+      conversation_id VARCHAR(50),
+      audio_file_key VARCHAR(255),
+      output_text VARCHAR(255),
+      timestamp_input DATETIME,
+      timestamp_output DATETIME,
+      healthcode INT);")
+    
+    @db.query("CREATE TABLE IF NOT EXISTS voice_generator_ai(
+      user_id VARCHAR(50),
+      iteration_id VARCHAR(50),
+      conversation_id VARCHAR(50),
+      input_text VARCHAR(255),
+      audio_file_key VARCHAR(255),
+      timestamp_input DATETIME,
+      timestamp_output DATETIME,
+      healthcode INT);")
+    
+    @db.query("CREATE TABLE IF NOT EXISTS language_processing_ai(
+      user_id VARCHAR(50),
+      iteration_id VARCHAR(50),
+      conversation_id VARCHAR(50),
+      input_text VARCHAR(255),
+      output_text VARCHAR(255),
+      timestamp_input DATETIME,
+      timestamp_output DATETIME,
+      healthcode INT);")
+    
+    @db
+    end
 end
 
-db = DatabaseConnection.new.establish
 
-db.query('SELECT user_id FROM users WHERE first_name = "d"').each{|row| p row['user_id']}

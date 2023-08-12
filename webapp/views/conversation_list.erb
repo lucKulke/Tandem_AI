@@ -1,0 +1,12 @@
+<h1>List</h1>
+<ul>
+
+<% session[:user].conversations.each do |conversation|%>
+  <li><a href="conversation/<%= conversation.conversation_id %>">conversation<a></li>
+<% end %>
+</ul>
+
+<form action="/conversation/create" method="Post">
+  <button type="submit">Create Conversation</button>
+</form>
+
