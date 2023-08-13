@@ -22,9 +22,7 @@ class DatabaseConnection
   def create_tables
     @db.query("CREATE TABLE IF NOT EXISTS users(
       user_id VARCHAR(50),
-      first_name VARCHAR(100),
-      surname VARCHAR(100),
-      email VARCHAR(300));")
+      google_auth VARCHAR(120));")
     
     @db.query("CREATE TABLE IF NOT EXISTS conversations(
       user_id VARCHAR(50),

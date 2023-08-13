@@ -43,17 +43,25 @@ end
 
 
 get "/" do
-  if session[:logged_in?].nil?
-    user_id = active_user_list.add_user('Max', 'Mustermann', 'example@gmail.com', db_connection)
-    session[:user_id] = user_id
-    session[:logged_in?] = true
-  end
-
-
+  redirect "/login" if session[:logged_in?] != true
   erb :home
 end
 
+post "/auth-receiver" do 
+  google_auth = request.body.read[/^\=(.*?)&/,1]
+  user_id = active_user_list.add_user(google_auth, db_connection)
+  session[:user_id] = user_id
+  session[:logged_in?] = true
+  redirect "/"
+end
+
+get "/login" do
+  response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+  erb :login
+end
+
 get "/conversation_list" do
+  redirect "/login" if session[:logged_in?] != true
   @user = active_user_list.load_user(session[:user_id])
   
   if session[:some_conversation_changed] == true 
@@ -72,7 +80,8 @@ get "/conversation_list" do
   erb :conversation_list
 end
 
-get "/conversation/update_status" do 
+get "/conversation/update_status" do
+  redirect "/login" if session[:logged_in?] != true
   user = active_user_list.load_user(session[:user_id])
   user.update_conversation_data(iteration_information_obj)
   
@@ -81,6 +90,7 @@ get "/conversation/update_status" do
 end
 
 get "/conversation/:conversation_id" do
+  redirect "/login" if session[:logged_in?] != true
   @user = active_user_list.load_user(session[:user_id])
   @user.enter_conversation(params['conversation_id'])
   @conversation = format_conversation_for_view(@user.current_conversation.conversation_text)
@@ -89,6 +99,7 @@ get "/conversation/:conversation_id" do
 end 
 
 get "/iteration_end" do
+  redirect "/login" if session[:logged_in?] != true
   if request.env['HTTP_ITERATION_END'] == 'true'
     user = active_user_list.load_user(session[:user_id]) 
     user.upload_conversation_to_db(user.current_conversation_id, db_connection)
@@ -98,6 +109,7 @@ end
 
 
 get '/audio_file/:audio_file' do
+  redirect "/login" if session[:logged_in?] != true
   send_file "./public/audio_files/#{params['audio_file']}", type: 'audio/wav'
 end
 
@@ -106,6 +118,7 @@ end
 
 
 get "/get_upload_url_for_client" do
+  redirect "/login" if session[:logged_in?] != true
   session[:some_conversation_changed] = true
   user = active_user_list.load_user(session[:user_id])
   session[:last_conversation] = user.current_conversation_id
@@ -123,6 +136,7 @@ get "/get_upload_url_for_client" do
 end
 
 post "/conversation/create" do 
+  redirect "/login" if session[:logged_in?] != true
   user = active_user_list.load_user(session[:user_id])
   user.create_conversation(db_connection)
   redirect '/conversation_list'
@@ -260,11 +274,9 @@ def format_conversation(text, user, ai)
       formantted_version << {role: 'system', content: ai } 
     end
   end
-  
+
   formantted_version
 end
-
-
 
 
 

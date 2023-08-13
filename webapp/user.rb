@@ -6,8 +6,8 @@ class User
   attr_accessor :current_conversation, :current_conversation_id, :conversations
   attr_reader :user_id
 
-  def initialize(first_name, surname, email, db_connection)
-    @user_id = load_user_data(first_name, surname, email, db_connection)
+  def initialize(google_auth, db_connection)
+    @user_id = load_user_data(google_auth, db_connection)
     @current_conversation_id = nil
     @current_conversation = nil
   end
@@ -51,10 +51,10 @@ class User
     db_connection.query('SELECT UUID();').first['UUID()']
   end
 
-  def load_user_data(first_name, surname, email, db_connection)
-    user_id = search_user_id(first_name, surname, email, db_connection)
+  def load_user_data(google_auth, db_connection)
+    user_id = search_user_id(google_auth, db_connection)
     if user_id.empty?
-      user_id = create_user_in_db(first_name, surname, email, db_connection)
+      user_id = create_user_in_db(google_auth, db_connection)
       @conversations = []
     else
       @conversations = load_conversations(user_id, db_connection)
@@ -73,14 +73,14 @@ class User
   end
 
 
-  def create_user_in_db(first_name, surname, email, db_connection)
+  def create_user_in_db(google_auth, db_connection)
     uuid = db_connection.query('SELECT UUID();').first['UUID()']
-    db_connection.query("INSERT INTO users VALUES ('#{uuid}','#{first_name}','#{surname}','#{email}');")
+    db_connection.query("INSERT INTO users VALUES ('#{uuid}','#{google_auth}');")
     uuid # returns user_id
   end
 
-  def search_user_id(first_name, surname, email, db_connection)
-    result = db_connection.query("SELECT user_id FROM users WHERE first_name = '#{first_name}' AND surname = '#{surname}' AND email = '#{email}';") #AND surname = #{surname} AND email = #{email}
+  def search_user_id(google_auth, db_connection)
+    result = db_connection.query("SELECT user_id FROM users WHERE google_auth = '#{google_auth}';") #AND surname = #{surname} AND email = #{email}
     result.first.nil? ? [] : result.first['user_id']
   end
 
@@ -134,8 +134,8 @@ class ActiveUserList
     @list = {}
   end
 
-  def add_user(first_name, surname, email, db_connection)
-    user = User.new(first_name, surname, email, db_connection)
+  def add_user(google_auth, db_connection)
+    user = User.new(google_auth, db_connection)
     @list[user.user_id] = user
     user.user_id
   end
