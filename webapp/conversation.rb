@@ -1,11 +1,11 @@
 class Conversation
-  attr_accessor :iteration, :speech_recognition_transcription_ai, :language_processing_ai, :voice_generator_ai, 
-                :conversation_text, :name,
-                :conversation_data, :conversation_id
+  attr_accessor :iteration, :user_labelling, :ai_labelling, :conversation_text, :name, :conversation_data, :conversation_id, :foramatted_conversation
   
-  def initialize(conversation_id, conversation_text, conversation_name)
+  def initialize(conversation_id, conversation_text, conversation_name, user_labelling, ai_labelling)
     @conversation_id = conversation_id
     @conversation_text = conversation_text
+    @user_labelling = user_labelling
+    @ai_labelling = ai_labelling
     @name = conversation_name
     reset
   end
@@ -28,7 +28,21 @@ class Conversation
       voice_generator_ai_timestamp_output: nil,
       voice_generator_ai_healthcode: nil
     }
-end
+  end
+
+  def format_conversation(text, user, ai)
+    user_labelling = user
+    ai_labelling = ai
+    formantted_version = []
+  
+    text.split(user_labelling).each do |substring1|
+      user = substring1[/^(.*)#{ai_labelling}/, 1]
+      formantted_version << {role: 'user', content: user} unless user.nil?
+      ai = substring1[/#{ai_labelling}(.*)/, 1]
+      formantted_version << {role: 'system', content: ai } unless ai.nil?
+    end
+    formantted_version
+  end
 
 
   def client_information

@@ -144,20 +144,16 @@ $(document).ready(function() {
 
   function formatConversation(conversation) {
     const words = conversation.split(' ');
-    let formattedVersion = words.slice(0, 20).join(' ') + "<br>";
-  
-    for (let i = 20; i < words.length; i++) {
-      const word = words[i];
-  
-      if (word === 'User:') {
-        formattedVersion += "<br><br>" + word;
-      } else if (word === 'Assistant:' || word === 'Assistent:') {
-        formattedVersion += "<br><br>" + word;
+    let formattedVersion = '';
+
+    words.forEach(word => {
+      if (word === 'User:' || word === 'AI:') {
+        formattedVersion += ("<br><br>" + word);
       } else {
-        formattedVersion += ' ' + word;
+        formattedVersion += (' ' + word);
       }
-    }
-  
-    return formattedVersion;
+    });
+
+  return formattedVersion;
   }
 });

@@ -15,9 +15,9 @@ class User
   def create_conversation(db_connection)
     conversation_name = 'new Conversation'
     uuid = db_connection.query('SELECT UUID();').first['UUID()']
-    start_text = "conversation start: "
+    start_text = ''
     db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation_name , conversation, timestamp_start) VALUES('#{self.user_id}', '#{uuid}', '#{conversation_name}', '#{start_text}', '#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}')")
-    new_conversation = Conversation.new(uuid, start_text, conversation_name)
+    new_conversation = Conversation.new(uuid, start_text, conversation_name, 'User:', 'AI:')
     conversations << new_conversation
   end
 
@@ -66,12 +66,12 @@ class User
     return_format = []
     result = db_connection.query("SELECT conversation_id, conversation_name, conversation FROM conversations WHERE user_id = '#{user_id}';")
     
-    
     result.each do |row|
-      return_format << Conversation.new(row['conversation_id'], row['conversation'], row['conversation_name'])
+      return_format << Conversation.new(row['conversation_id'], row['conversation'], row['conversation_name'], 'User:', 'AI:')
     end
     return_format
   end
+
 
   def create_user_in_db(first_name, surname, email, db_connection)
     uuid = db_connection.query('SELECT UUID();').first['UUID()']
@@ -122,7 +122,6 @@ class User
     # update conversation table 
     
     db_connection.query("UPDATE conversations SET conversation = '#{current_conversation.conversation_text}', conversation_name = '#{current_conversation.name}' WHERE conversation_id = '#{conversation_id}';")
-    p "moin"
   end
 end 
 
