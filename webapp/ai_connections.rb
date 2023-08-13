@@ -29,7 +29,7 @@ class LanguageProcessingAI
   def summarise_text_to_title(conversation)
     text = [
       {role: "system", content: "You are a helpful assistant"},
-      {role: "system", content: "Summarize the conversation as short as possible to a title and don't use ':'" },
+      {role: "system", content: "Summarize the conversation as short as possible to a title" },
       {role: "user", content: conversation}
     ]
     uri = URI.parse('https://api.openai.com/v1/chat/completions')
@@ -44,7 +44,7 @@ class LanguageProcessingAI
     payload = {
       model: 'gpt-3.5-turbo',
       messages: text,
-      max_tokens: 20
+      max_tokens: 12
     }
 
     response = http.post(uri.path, payload.to_json, headers)

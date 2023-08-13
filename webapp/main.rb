@@ -49,21 +49,26 @@ get "/" do
     session[:logged_in?] = true
   end
 
-  session[:changed_data] = false
 
   erb :home
 end
 
 get "/conversation_list" do
   @user = active_user_list.load_user(session[:user_id])
-  if session[:changed_data] == true 
+  
+  if session[:some_conversation_changed] == true 
     @user.conversations.each do |conversation|
-      if conversation.conversation_text != "conversation start: "
+      if conversation.conversation_id == session[:last_conversation]
         conversation.name = language_processing_ai.summarise_text_to_title(conversation.conversation_text)
       end
     end
+    session[:some_conversation_changed] = false
   end
-
+  if !session[:last_conversation].nil?
+    p "upload conversation id #{session[:last_conversation]} name #{@user.current_conversation.name} "
+    @user.update_conversation_table(db_connection, session[:last_conversation])
+  end
+  session[:last_conversation] = nil
   
   if !iteration_information_obj.bucket[@user.user_id].nil?
     iteration_information_obj.delete_iteration_temp_storage(@user.user_id)
@@ -80,7 +85,6 @@ get "/conversation/update_status" do
 end
 
 get "/conversation/:conversation_id" do
-  session[:changed_data] = false
   @user = active_user_list.load_user(session[:user_id])
   @user.enter_conversation(params['conversation_id'])
   @conversation = format_conversation_for_view(@user.current_conversation.conversation_text)
@@ -108,8 +112,9 @@ end
 
 
 get "/get_upload_url_for_client" do
-  session[:changed_data] = true
   user = active_user_list.load_user(session[:user_id])
+  session[:some_conversation_changed] = true
+  session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
   iteration_information_obj.delete_iteration_temp_storage(user.user_id)
   iteration_information_obj.create_iteration_temp_storage(user.user_id, user.current_conversation.conversation_text)

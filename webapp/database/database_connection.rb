@@ -29,7 +29,7 @@ class DatabaseConnection
     @db.query("CREATE TABLE IF NOT EXISTS conversations(
       user_id VARCHAR(50),
       conversation_id VARCHAR(50),
-      conversation_name VARCHAR(50),
+      conversation_name VARCHAR(80),
       conversation MEDIUMTEXT,
       timestamp_start DATETIME,
       timestamp_paused DATETIME,
