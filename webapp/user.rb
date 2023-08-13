@@ -81,11 +81,7 @@ class User
 
   def search_user_id(first_name, surname, email, db_connection)
     result = db_connection.query("SELECT user_id FROM users WHERE first_name = '#{first_name}' AND surname = '#{surname}' AND email = '#{email}';") #AND surname = #{surname} AND email = #{email}
-    if result.first.nil?
-      result = []
-    else
-      result.first['user_id']
-    end# .first['user_id']
+    result.first.nil? ? [] : result.first['user_id']
   end
 
   def update_conversation_table(db_connection, conversation_id)
@@ -95,10 +91,7 @@ class User
   end
 
  
-
   def upload_conversation_to_db(conversation_id, db_connection)
-    # loads each iteration in each ai table
-
     iteration_id = create_uuid(db_connection)
     data = current_conversation.conversation_data
     output_text = db_connection.escape(data[:speech_recognition_transcription_ai_output_text])
@@ -113,8 +106,12 @@ class User
                                       
     input_text = db_connection.escape(data[:language_processing_ai_input_text])
     output_text = db_connection.escape(data[:language_processing_ai_output_text])
-    db_connection.query("INSERT INTO language_processing_ai (user_id, iteration_id, conversation_id, input_text, output_text, timestamp_input, timestamp_output, healthcode) 
-    VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}', '#{input_text}', '#{output_text}', '#{data[:language_processing_ai_timestamp_input]}', '#{data[:language_processing_ai_timestamp_output]}', '#{data[:language_processing_ai_healthcode].to_i}');")
+    db_connection.query("INSERT INTO language_processing_ai 
+                        (user_id, iteration_id, conversation_id, input_text, output_text, timestamp_input, timestamp_output, healthcode) 
+                        VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}', '#{input_text}', '#{output_text}',
+                        '#{data[:language_processing_ai_timestamp_input]}', 
+                        '#{data[:language_processing_ai_timestamp_output]}', 
+                        '#{data[:language_processing_ai_healthcode].to_i}');")
                         
     input_text = db_connection.escape(data[:voice_generator_ai_input_text])
     db_connection.query("INSERT INTO voice_generator_ai
@@ -126,8 +123,6 @@ class User
                         '#{data[:voice_generator_ai_timestamp_output]}',
                         '#{data[:voice_generator_ai_healthcode].to_i}');")
 
-    # update conversation table 
-    
     update_conversation_table(db_connection, conversation_id)
   end
 end 

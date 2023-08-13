@@ -58,21 +58,17 @@ get "/conversation_list" do
   
   if session[:some_conversation_changed] == true 
     @user.conversations.each do |conversation|
-      if conversation.conversation_id == session[:last_conversation]
-        conversation.name = language_processing_ai.summarise_text_to_title(conversation.conversation_text)
-      end
+      conversation.name = language_processing_ai.summarise_text_to_title(conversation.conversation_text) if conversation.conversation_id == session[:last_conversation]
     end
     session[:some_conversation_changed] = false
   end
-  if !session[:last_conversation].nil?
-    p "upload conversation id #{session[:last_conversation]} name #{@user.current_conversation.name} "
-    @user.update_conversation_table(db_connection, session[:last_conversation])
-  end
+  
+  @user.update_conversation_table(db_connection, session[:last_conversation]) if !session[:last_conversation].nil?
+  
   session[:last_conversation] = nil
   
-  if !iteration_information_obj.bucket[@user.user_id].nil?
-    iteration_information_obj.delete_iteration_temp_storage(@user.user_id)
-  end
+  iteration_information_obj.delete_iteration_temp_storage(@user.user_id) if !iteration_information_obj.bucket[@user.user_id].nil?
+  
   erb :conversation_list
 end
 
@@ -102,8 +98,6 @@ end
 
 
 get '/audio_file/:audio_file' do
-  # user = active_user_list.load_user(session[:user_id]) 
-  # user.upload_conversation_to_db(user.current_conversation_id, db_connection)
   send_file "./public/audio_files/#{params['audio_file']}", type: 'audio/wav'
 end
 
@@ -112,8 +106,8 @@ end
 
 
 get "/get_upload_url_for_client" do
-  user = active_user_list.load_user(session[:user_id])
   session[:some_conversation_changed] = true
+  user = active_user_list.load_user(session[:user_id])
   session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
   iteration_information_obj.delete_iteration_temp_storage(user.user_id)
@@ -168,7 +162,6 @@ def find_user_by_audio_file_key(audio_file_key, iteration_information_obj)
     end
   end
   user_id
-
 end
 
 def speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
@@ -190,7 +183,7 @@ end
 def language_processing_ai_process(iteration_information_obj, input_text, user_id, language_processing_ai)
 
   iteration_information_obj.bucket[user_id][:conversation_text] += "User: #{input_text} AI:"
-  p input_text_with_context = iteration_information_obj.bucket[user_id][:conversation_text]
+  input_text_with_context = iteration_information_obj.bucket[user_id][:conversation_text]
 
   puts formatted_conversation = format_conversation(input_text_with_context, 'User:', 'AI:')
 
@@ -207,7 +200,6 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
     response = response[1]
   else
     iteration_information_obj.bucket[user_id][:conversation_text] += " #{response} "
-
   end
   
   iteration_information_obj.save_language_processing_ai_data(
@@ -220,7 +212,6 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
   )
 
   response
-  
 end
 
 def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
@@ -228,7 +219,6 @@ def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
   response = 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav'#voice_generator_ai.generate_response(input_text)
   timestamp_output = DateTime.now
   
-
   iteration_information_obj.save_voice_generation_ai_data(
     user_id,
     input_text: input_text, 
@@ -237,10 +227,8 @@ def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
     timestamp_output: timestamp_output,
     healthcode: 200
   )
-
-
-  response #filter audio_file_key
-
+  
+  response
 end
 
 def format_conversation_for_view(conversation)
@@ -263,7 +251,6 @@ def format_conversation(text, user, ai)
   formantted_version = []
 
   text.split(user_labelling).each do |substring1|
-
     user = substring1[/^(.*)#{ai_labelling}/, 1]
     if !user.nil? && user != ''
       formantted_version << {role: 'user', content: user} unless user.nil?
@@ -273,6 +260,7 @@ def format_conversation(text, user, ai)
       formantted_version << {role: 'system', content: ai } 
     end
   end
+  
   formantted_version
 end
 
