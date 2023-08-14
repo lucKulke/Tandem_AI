@@ -47,14 +47,6 @@ get "/" do
   erb :home
 end
 
-post "/auth-receiver" do 
-  google_auth = request.body.read[/^\=(.*?)&/,1]
-  user_id = active_user_list.add_user(google_auth, db_connection)
-  session[:user_id] = user_id
-  session[:logged_in?] = true
-  redirect "/"
-end
-
 get "/login" do
   response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
   erb :login
@@ -75,15 +67,12 @@ get "/conversation_list" do
   
   session[:last_conversation] = nil
   
-  iteration_information_obj.delete_iteration_temp_storage(@user.user_id) if !iteration_information_obj.bucket[@user.user_id].nil?
-  
   erb :conversation_list
 end
 
 get "/conversation/update_status" do
   redirect "/login" if session[:logged_in?] != true
   user = active_user_list.load_user(session[:user_id])
-  user.update_conversation_data(iteration_information_obj)
   
   content_type :json
   user.current_conversation.client_information.to_json
@@ -115,24 +104,29 @@ end
 
 
 
-
-
 get "/get_upload_url_for_client" do
   redirect "/login" if session[:logged_in?] != true
   session[:some_conversation_changed] = true
   user = active_user_list.load_user(session[:user_id])
   session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
-  iteration_information_obj.delete_iteration_temp_storage(user.user_id)
-  iteration_information_obj.create_iteration_temp_storage(user.user_id, user.current_conversation.conversation_text)
+  iteration_information_obj.create_iteration_temp_storage(user.user_id, user.current_conversation)
   
   file_name = "recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
   
   url_and_filename = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client')
 
-  iteration_information_obj.bucket[user.user_id][:speech_recognition_transcription_ai_audio_file_key] = file_name
+  iteration_information_obj.bucket[user.user_id].data[:speech_recognition_transcription_ai_audio_file_key] = file_name
   content_type :json
   url_and_filename.to_json
+end
+
+post "/auth-receiver" do 
+  google_auth = request.body.read[/^\=(.*?)&/,1]
+  user_id = active_user_list.add_user(google_auth, db_connection)
+  session[:user_id] = user_id
+  session[:logged_in?] = true
+  redirect "/"
 end
 
 post "/conversation/create" do 
@@ -149,7 +143,7 @@ post '/speech_recognition_transcription_ai_result' do
   headers = request.env
   audio_file_key = headers['HTTP_AUDIO_FILE_KEY']
 
-  user_id = find_user_by_audio_file_key(audio_file_key, iteration_information_obj)
+  user_id = find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
 
   # post request contains [user_id, output_text, timestamp_input, timestamp_output, healthcode]
   speech_recognition_transcription_ai_output_text = speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
@@ -167,15 +161,11 @@ post '/speech_recognition_transcription_ai_result' do
   status 201
 end
 
-def find_user_by_audio_file_key(audio_file_key, iteration_information_obj)
-  user_id = nil
-  iteration_information_obj.bucket.each do |user, data|
-    if data[:speech_recognition_transcription_ai_audio_file_key] == audio_file_key
-      user_id = user
-      break
-    end
+def find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
+  iteration_information_obj.bucket.each do |user_id, conversation|
+    return user_id if conversation.data[:speech_recognition_transcription_ai_audio_file_key] == audio_file_key
   end
-  user_id
+  'not found'
 end
 
 def speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
@@ -184,7 +174,7 @@ def speech_recognition_transcription_ai_process(iteration_information_obj, heade
   healthcode = headers['HTTP_HEALTHCODE']
 
 
-  iteration_information_obj.save_speech_recognition_transcription_ai_data(
+  iteration_information_obj.bucket[user_id].save_speech_recognition_transcription_ai_data(
     user_id,
     output_text: output_text, 
     timestamp_input: timestamp_input, 
@@ -196,8 +186,8 @@ end
 
 def language_processing_ai_process(iteration_information_obj, input_text, user_id, language_processing_ai)
 
-  iteration_information_obj.bucket[user_id][:conversation_text] += "User: #{input_text} AI:"
-  input_text_with_context = iteration_information_obj.bucket[user_id][:conversation_text]
+  iteration_information_obj.bucket[user_id].conversation_text += "User: #{input_text} AI:"
+  input_text_with_context = iteration_information_obj.bucket[user_id].conversation_text
 
   puts formatted_conversation = format_conversation(input_text_with_context, 'User:', 'AI:')
 
@@ -213,10 +203,10 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
     healthcode = response[0]
     response = response[1]
   else
-    iteration_information_obj.bucket[user_id][:conversation_text] += " #{response} "
+    iteration_information_obj.bucket[user_id].conversation_text += " #{response} "
   end
   
-  iteration_information_obj.save_language_processing_ai_data(
+  iteration_information_obj.bucket[user_id].save_language_processing_ai_data(
     user_id, 
     input_text: input_text,
     output_text: response, 
@@ -233,7 +223,7 @@ def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
   response = 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav'#voice_generator_ai.generate_response(input_text)
   timestamp_output = DateTime.now
   
-  iteration_information_obj.save_voice_generation_ai_data(
+  iteration_information_obj.bucket[user_id].save_voice_generator_ai_data(
     user_id,
     input_text: input_text, 
     audio_file_key: response,
@@ -262,20 +252,20 @@ end
 def format_conversation(text, user, ai)
   user_labelling = user
   ai_labelling = ai
-  formantted_version = []
+  formatted_version = []
 
   text.split(user_labelling).each do |substring1|
     user = substring1[/^(.*)#{ai_labelling}/, 1]
     if !user.nil? && user != ''
-      formantted_version << {role: 'user', content: user} unless user.nil?
+      formatted_version << {role: 'user', content: user} unless user.nil?
     end
     ai = substring1[/#{ai_labelling}(.*)/, 1]
     if !ai.nil? && ai != ''
-      formantted_version << {role: 'system', content: ai } 
+      formatted_version << {role: 'system', content: ai } 
     end
   end
 
-  formantted_version
+  formatted_version
 end
 
 

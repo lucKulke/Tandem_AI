@@ -37,15 +37,6 @@ class User
     self.current_conversation.reset
   end
 
-  def update_conversation_data(iteration_information_obj)
-    iteration_information_obj.bucket[user_id].each do |key, value|
-      if key == :conversation_text
-        current_conversation.conversation_text = value
-      else
-        current_conversation.conversation_data[key] = value
-      end
-    end
-  end
 
   def create_uuid(db_connection)
     db_connection.query('SELECT UUID();').first['UUID()']
@@ -93,7 +84,7 @@ class User
  
   def upload_conversation_to_db(conversation_id, db_connection)
     iteration_id = create_uuid(db_connection)
-    data = current_conversation.conversation_data
+    data = current_conversation.data
     output_text = db_connection.escape(data[:speech_recognition_transcription_ai_output_text])
     db_connection.query("INSERT INTO speech_recognition_transcription_ai
                         (user_id, iteration_id, conversation_id, audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)

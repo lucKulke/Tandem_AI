@@ -43,10 +43,10 @@ $(document).ready(function() {
   uploadButton.on('click', async () => {
     document.getElementById('user_text').textContent = '';
     document.getElementById('ai_answer').textContent = '';
-     if (audioChunks.length === 0) {
-      alert('No recording to upload.');
-      return;
-    }
+    //  if (audioChunks.length === 0) {
+    //   alert('No recording to upload.');
+    //   return;
+    // }
     
     try {
       const response = await fetch('/get_upload_url_for_client', {

@@ -1,17 +1,17 @@
 class Conversation
-  attr_accessor :iteration, :user_labelling, :ai_labelling, :conversation_text, :name, :conversation_data, :conversation_id, :foramatted_conversation
+  attr_accessor :iteration, :user_labelling, :ai_labelling, :conversation_text, :name, :data, :conversation_id
   
-  def initialize(conversation_id, conversation_text, conversation_name, user_labelling, ai_labelling)
+  def initialize(conversation_id, text, name, user_labelling, ai_labelling)
     @conversation_id = conversation_id
     @conversation_text = conversation_text
     @user_labelling = user_labelling
     @ai_labelling = ai_labelling
-    @name = conversation_name
+    @name = name
     reset
   end
 
   def reset
-    @conversation_data = {
+    @data = {
       speech_recognition_transcription_ai_audio_file_key: nil,
       speech_recognition_transcription_ai_output_text: nil,
       speech_recognition_transcription_ai_timestamp_input: nil,
@@ -30,55 +30,39 @@ class Conversation
     }
   end
 
-  def format_conversation(text, user, ai)
-    user_labelling = user
-    ai_labelling = ai
-    formantted_version = []
-  
-    text.split(user_labelling).each do |substring1|
-      user = substring1[/^(.*)#{ai_labelling}/, 1]
-      formantted_version << {role: 'user', content: user} unless user.nil?
-      ai = substring1[/#{ai_labelling}(.*)/, 1]
-      formantted_version << {role: 'system', content: ai } unless ai.nil?
-    end
-    formantted_version
-  end
-
 
   def client_information
-    {audio_file_key: self.conversation_data[:voice_generator_ai_audio_file_key], user_text: self.conversation_data[:speech_recognition_transcription_ai_output_text], ai_answer: self.conversation_data[:language_processing_ai_output_text], conversation_text: conversation_text}
+    {audio_file_key: self.data[:voice_generator_ai_audio_file_key], user_text: self.data[:speech_recognition_transcription_ai_output_text], ai_answer: self.data[:language_processing_ai_output_text], conversation_text: conversation_text}
   end
 
 
   def end_iteration
-    self.conversation_text += "user: #{self.conversation_data[:speech_recognition_transcription_ai_output_text]}\nai: #{self.conversation_data[:language_processing_ai_output_text]}\n\n"
+    self.conversation_text += "user: #{self.data[:speech_recognition_transcription_ai_output_text]}\nai: #{self.data[:language_processing_ai_output_text]}\n\n"
     reset
   end
 
-
-  def speech_recognition_transcription_ai_data(audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)
-      conversation_data[:speech_recognition_transcription_ai_audio_file_key] = audio_file_key
-      conversation_data[:speech_recognition_transcription_ai_output_text] = output_text,
-      conversation_data[:speech_recognition_transcription_ai_timestamp_input] = timestamp_input,
-      conversation_data[:speech_recognition_transcription_ai_timestamp_output] = timestamp_output,
-      conversation_data[:speech_recognition_transcription_ai_healthcode] = healthcode 
+  def save_speech_recognition_transcription_ai_data(user_id, audio_file_key: nil, output_text: nil, timestamp_input: nil, timestamp_output: nil, healthcode: nil)
+    self.data[:speech_recognition_transcription_ai_audio_file_key] = audio_file_key
+    self.data[:speech_recognition_transcription_ai_output_text] = output_text
+    self.data[:speech_recognition_transcription_ai_timestamp_input] = timestamp_input
+    self.data[:speech_recognition_transcription_ai_timestamp_output] = timestamp_output
+    self.data[:speech_recognition_transcription_ai_healthcode] = healthcode 
   end
 
-  def language_processing_ai_data(input_text, output_text, timestamp_input, timestamp_output, healthcode)
-    conversation_data[:language_processing_ai_input_text] = audio_file_key
-    conversation_data[:language_processing_ai_output_text] = output_text,
-    conversation_data[:language_processing_ai_timestamp_input] = timestamp_input,
-    conversation_data[:language_processing_ai_timestamp_output] = timestamp_output,
-    conversation_data[:language_processing_ai_healthcode] = healthcode 
+  def save_language_processing_ai_data(user_id, input_text: nil, output_text: nil, timestamp_input: nil, timestamp_output: nil, healthcode: nil)
+    self.data[:language_processing_ai_input_text] = input_text
+    self.data[:language_processing_ai_output_text] = output_text
+    self.data[:language_processing_ai_timestamp_input] = timestamp_input
+    self.data[:language_processing_ai_timestamp_output] = timestamp_output
+    self.data[:language_processing_ai_healthcode] = healthcode
   end
 
-  def voice_generator_ai_data(input_text, audio_file_key, timestamp_input, timestamp_output, healthcode)
-    conversation_data[:voice_generator_ai_input_text] = audio_file_key
-    conversation_data[:voice_generator_ai_output_audio_file_key] = output_text,
-    conversation_data[:voice_generator_ai_timestamp_input] = timestamp_input,
-    conversation_data[:voice_generator_ai_timestamp_output] = timestamp_output,
-    conversation_data[:voice_generator_ai_healthcode] = healthcode 
+  def save_voice_generator_ai_data(user_id, input_text: nil, audio_file_key: nil, timestamp_input: nil, timestamp_output: nil, healthcode: nil)
+    self.data[:voice_generator_ai_input_text] = input_text
+    self.data[:voice_generator_ai_audio_file_key] = audio_file_key
+    self.data[:voice_generator_ai_timestamp_input] = timestamp_input
+    self.data[:voice_generator_ai_timestamp_output] = timestamp_output
+    self.data[:voice_generator_ai_healthcode] = healthcode
   end
   
 end
-
