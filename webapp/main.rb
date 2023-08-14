@@ -82,7 +82,7 @@ get "/conversation/:conversation_id" do
   redirect "/login" if session[:logged_in?] != true
   @user = active_user_list.load_user(session[:user_id])
   @user.enter_conversation(params['conversation_id'])
-  @conversation = format_conversation_for_view(@user.current_conversation.conversation_text)
+  @conversation = @user.current_conversation.sections
 
   erb :conversation
 end 
@@ -91,7 +91,7 @@ get "/iteration_end" do
   redirect "/login" if session[:logged_in?] != true
   if request.env['HTTP_ITERATION_END'] == 'true'
     user = active_user_list.load_user(session[:user_id]) 
-    user.upload_conversation_to_db(user.current_conversation_id, db_connection)
+    user.upload_conversation_to_db(db_connection)
   end
   status 201
 end
@@ -187,15 +187,12 @@ end
 def language_processing_ai_process(iteration_information_obj, input_text, user_id, language_processing_ai)
 
   iteration_information_obj.bucket[user_id].conversation_text += "User: #{input_text} AI:"
-  input_text_with_context = iteration_information_obj.bucket[user_id].conversation_text
-
-  puts formatted_conversation = format_conversation(input_text_with_context, 'User:', 'AI:')
-
+  iteration_information_obj.bucket[user_id].sections << {role: 'user', content: input_text}
   
-  formatted_conversation.unshift({role: "system", content: "You are a helpful assistant"})
+  iteration_information_obj.bucket[user_id].sections.unshift({role: 'system', content: "You are a helpful assistant"})
   
   timestamp_input = DateTime.now
-  response = language_processing_ai.generate_response(formatted_conversation)
+  response = language_processing_ai.generate_response(iteration_information_obj.bucket[user_id].sections)
   timestamp_output = DateTime.now
   healthcode = 200
   
@@ -203,6 +200,7 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
     healthcode = response[0]
     response = response[1]
   else
+    iteration_information_obj.bucket[user_id].sections << {role: 'system', content: response}
     iteration_information_obj.bucket[user_id].conversation_text += " #{response} "
   end
   
@@ -235,38 +233,6 @@ def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
   response
 end
 
-def format_conversation_for_view(conversation)
-  formatted_version = ''
-  conversation.split(' ').each do |word|
-    if word == 'User:' 
-      formatted_version += ("<br><br>" + word)
-    elsif word == 'AI:'
-      formatted_version += ("<br><br>" + word)
-    else
-      formatted_version += (' ' + word)
-    end
-  end
-  formatted_version
-end
-
-def format_conversation(text, user, ai)
-  user_labelling = user
-  ai_labelling = ai
-  formatted_version = []
-
-  text.split(user_labelling).each do |substring1|
-    user = substring1[/^(.*)#{ai_labelling}/, 1]
-    if !user.nil? && user != ''
-      formatted_version << {role: 'user', content: user} unless user.nil?
-    end
-    ai = substring1[/#{ai_labelling}(.*)/, 1]
-    if !ai.nil? && ai != ''
-      formatted_version << {role: 'system', content: ai } 
-    end
-  end
-
-  formatted_version
-end
 
 
 

@@ -17,7 +17,7 @@ class User
     uuid = db_connection.query('SELECT UUID();').first['UUID()']
     start_text = ''
     db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation_name , conversation, timestamp_start) VALUES('#{self.user_id}', '#{uuid}', '#{conversation_name}', '#{start_text}', '#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}')")
-    new_conversation = Conversation.new(uuid, start_text, conversation_name, 'User:', 'AI:')
+    new_conversation = Conversation.new(uuid, start_text, [], conversation_name, 'User:', 'AI:')
     conversations << new_conversation
   end
 
@@ -56,11 +56,22 @@ class User
   def load_conversations(user_id, db_connection)
     return_format = []
     result = db_connection.query("SELECT conversation_id, conversation_name, conversation FROM conversations WHERE user_id = '#{user_id}';")
-    
     result.each do |row|
-      return_format << Conversation.new(row['conversation_id'], row['conversation'], row['conversation_name'], 'User:', 'AI:')
+      sections = load_conversation_sections(row['conversation_id'], db_connection)
+      return_format << Conversation.new(row['conversation_id'], row['conversation'], sections, row['conversation_name'], 'User:', 'AI:')
     end
     return_format
+  end
+
+  def load_conversation_sections(conversation_id, db_connection)
+    sections = []
+    id = db_connection.escape(conversation_id)
+    result = db_connection.query("SELECT input_text, output_text FROM language_processing_ai WHERE conversation_id = '#{id}'")
+    result.each do |row|
+      sections << {role: 'User', content: row['input_text']}
+      sections << {role: 'System', content: row['output_text']}
+    end
+    sections
   end
 
 
@@ -82,9 +93,10 @@ class User
   end
 
  
-  def upload_conversation_to_db(conversation_id, db_connection)
+  def upload_conversation_to_db(db_connection)
     iteration_id = create_uuid(db_connection)
-    data = current_conversation.data
+    conversation_id = self.current_conversation_id
+    data = self.current_conversation.data
     output_text = db_connection.escape(data[:speech_recognition_transcription_ai_output_text])
     db_connection.query("INSERT INTO speech_recognition_transcription_ai
                         (user_id, iteration_id, conversation_id, audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)

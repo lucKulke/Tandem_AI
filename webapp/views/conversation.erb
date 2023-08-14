@@ -13,7 +13,11 @@
                 <p id="ai_answer"></p>
             </div>
             <div class="conversation-history">
-                <p id="history"><%= @conversation %></p>
+                <ul>
+                <% @conversation.each do |section| %>
+                    <li><%="#{section[:role]}: #{section[:content]}"%></li>
+                <% end %>
+                </ul>
                 <!-- More conversation history entries will go here -->
             </div>
         </div>

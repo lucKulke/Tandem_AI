@@ -1,8 +1,9 @@
 class Conversation
-  attr_accessor :iteration, :user_labelling, :ai_labelling, :conversation_text, :name, :data, :conversation_id
+  attr_accessor :iteration, :user_labelling, :ai_labelling, :conversation_text, :name, :data, :conversation_id, :sections
   
-  def initialize(conversation_id, text, name, user_labelling, ai_labelling)
+  def initialize(conversation_id, text, sections, name, user_labelling, ai_labelling)
     @conversation_id = conversation_id
+    @sections = sections
     @conversation_text = conversation_text
     @user_labelling = user_labelling
     @ai_labelling = ai_labelling
@@ -32,14 +33,9 @@ class Conversation
 
 
   def client_information
-    {audio_file_key: self.data[:voice_generator_ai_audio_file_key], user_text: self.data[:speech_recognition_transcription_ai_output_text], ai_answer: self.data[:language_processing_ai_output_text], conversation_text: conversation_text}
+    {audio_file_key: self.data[:voice_generator_ai_audio_file_key], user_text: self.data[:speech_recognition_transcription_ai_output_text], ai_answer: self.data[:language_processing_ai_output_text], conversation: sections}
   end
 
-
-  def end_iteration
-    self.conversation_text += "user: #{self.data[:speech_recognition_transcription_ai_output_text]}\nai: #{self.data[:language_processing_ai_output_text]}\n\n"
-    reset
-  end
 
   def save_speech_recognition_transcription_ai_data(user_id, audio_file_key: nil, output_text: nil, timestamp_input: nil, timestamp_output: nil, healthcode: nil)
     self.data[:speech_recognition_transcription_ai_audio_file_key] = audio_file_key
