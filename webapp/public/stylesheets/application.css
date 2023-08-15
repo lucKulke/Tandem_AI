@@ -30,13 +30,6 @@ body {
   margin-bottom: 10px;
 }
 
-.user {
-  background-color: #f0f0f0;
-}
-
-.gpt {
-  background-color: #e0e0e0;
-}
 
 .conversation-history {
   max-height: 300px;
@@ -44,13 +37,16 @@ body {
 }
 
 
-
 .user {
   color: #0084ff;
 }
 
-.gpt {
+.interlocutor {
   color: #00a600;
+}
+
+.corrector {
+  color: red;
 }
 
 #audioPlayer{
@@ -60,7 +56,7 @@ body {
 .history-container {
   width: 100%;
   max-width: 1200px;
-  height: 50%; /* Set a fixed height to make the container scrollable */
+  height: 700px; /* Set a fixed height to make the container scrollable */
   margin: 0 auto;
   background-color: #f0f0f0;
   border-radius: 10px;

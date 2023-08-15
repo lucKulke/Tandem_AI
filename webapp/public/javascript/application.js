@@ -41,8 +41,8 @@ $(document).ready(function() {
   });
   
   uploadButton.on('click', async () => {
-    document.getElementById('user_text').textContent = '';
-    document.getElementById('ai_answer').textContent = '';
+    document.getElementById('user').textContent = '';
+    document.getElementById('interlocutor').textContent = '';
     //  if (audioChunks.length === 0) {
     //   alert('No recording to upload.');
     //   return;
@@ -91,15 +91,15 @@ $(document).ready(function() {
           // Update your client view with the latest data from the server
           // This could involve updating the UI, showing new messages, etc.
           console.log(`incomming conversation text${data['section']}`);
-          document.getElementById('user_text').textContent = data['user_text'];
-          document.getElementById('ai_answer').textContent = data['ai_answer'];
+          document.getElementById('user').textContent = data['user_text'];
+          document.getElementById('interlocutor').textContent = data['ai_answer'];
           
           // Check if the specific key value pair exists to stop the loop
           console.log(data);
           console.log(data['audio_file_key']);
           if (data['audio_file_key'] !== null ) {
             let listItem = createListItem(data['section']);
-            historyList.appendChild(listItem);
+            historyList.insertBefore(listItem, historyList.firstChild);
             clearInterval(updateInterval);
             downloadAndPlayAudio(data['audio_file_key']);
           }
@@ -142,20 +142,6 @@ $(document).ready(function() {
     audioPlayer[0].play();
   }
 
-  function formatConversation(conversation) {
-    const words = conversation.split(' ');
-    let formattedVersion = '';
-
-    words.forEach(word => {
-      if (word === 'User:' || word === 'AI:') {
-        formattedVersion += ("<br><br>" + word);
-      } else {
-        formattedVersion += (' ' + word);
-      }
-    });
-
-  return formattedVersion;
-  }
   
   function createListItem(data) {
     // Create a new list item element
@@ -165,18 +151,24 @@ $(document).ready(function() {
     const divElement = document.createElement("div");
   
     // Create and populate the paragraphs
-    const paragraphs = [
-      { role: data[0][0].role, content: data[0][0].content},
-      { role: data[0][1].role, content: data[0][1].content },
-      { role: data[1].role, content: data[1].content }
-    ];
-
   
-    paragraphs.forEach(paragraphInfo => {
-      const paragraph = document.createElement("p");
-      paragraph.textContent = `${paragraphInfo.role}: ${paragraphInfo.content}`;
-      divElement.appendChild(paragraph);
-    });
+    
+    const userParagraph = document.createElement("p");
+    const correctorParagraph = document.createElement("p");
+    const interlocutor = document.createElement("p");
+    
+    userParagraph.className = "user";
+    correctorParagraph.className = "corrector";
+    interlocutor.className = "interlocutor";
+    
+    userParagraph.textContent = `${data[0][0].role}: ${data[0][0].content}`;
+    correctorParagraph.textContent = `(Corrector: ${data[0][1].content})`;
+    interlocutor.textContent = `${data[1].role}: ${data[1].content}`;
+    
+    divElement.appendChild(userParagraph);
+    divElement.appendChild(correctorParagraph);
+    divElement.appendChild(interlocutor);
+  
   
     // Append the div element to the list item
     listItem.appendChild(divElement);

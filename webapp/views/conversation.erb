@@ -7,19 +7,19 @@
         </div>
         <div class="conversation">
             <div class="message-box user">
-                <p id="user_text"></p>
+                <p id="user"></p>
             </div>
-            <div class="message-box gpt">
-                <p id="ai_answer"></p>
+            <div class="message-box interlocutor">
+                <p id="interlocutor"></p>
             </div>
             <div class="history-container">
                 <ul id="historyList">
-                <% @conversation.each do |section| %>
+                <% @conversation.reverse.each do |section| %>
                     <li class="chat-item">
                         <div>
-                            <p><%= "#{section[0][0][:role]}: #{section[0][0][:content]}"%><p>
-                            <p><%= "#{section[0][1][:role]}: #{section[0][1][:content]}"%><p>
-                            <p><%= "#{section[1][:role]}: #{section[1][:content]}"%><p>
+                            <p class="user"><%= "#{section[0][0][:role]}: #{section[0][0][:content]}"%><p>
+                            <p class="corrector"><%= "(Corrector: #{section[0][1][:content]})"%><p>
+                            <p class="interlocutor"><%= "#{section[1][:role]}: #{section[1][:content]}"%><p>
     
                         </div>
                     </li>
