@@ -58,7 +58,7 @@ get "/conversation_list" do
   
   if session[:some_conversation_changed] == true 
     @user.conversations.each do |conversation|
-      conversation.name = language_processing_ai.summarise_text_to_title(conversation.conversation_text) if conversation.conversation_id == session[:last_conversation]
+      conversation.name = language_processing_ai.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) if conversation.conversation_id == session[:last_conversation]
     end
     session[:some_conversation_changed] = false
   end
@@ -82,7 +82,7 @@ get "/conversation/:conversation_id" do
   redirect "/login" if session[:logged_in?] != true
   @user = active_user_list.load_user(session[:user_id])
   @user.enter_conversation(params['conversation_id'])
-  @conversation = @user.current_conversation.sections
+  @conversation = combine_sections(@user.current_conversation.interlocutor_sections, @user.current_conversation.corrector_sections)
 
   erb :conversation
 end 
@@ -185,35 +185,34 @@ def speech_recognition_transcription_ai_process(iteration_information_obj, heade
 end
 
 def language_processing_ai_process(iteration_information_obj, input_text, user_id, language_processing_ai)
-
-  iteration_information_obj.bucket[user_id].conversation_text += "User: #{input_text} AI:"
-  iteration_information_obj.bucket[user_id].sections << {role: 'user', content: input_text}
   
-  iteration_information_obj.bucket[user_id].sections.unshift({role: 'system', content: "You are a helpful assistant"})
+  iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'user', content: input_text}
+  iteration_information_obj.bucket[user_id].corrector_sections << {role: 'user', content: input_text}
+
+  interlocutor_conversation = iteration_information_obj.bucket[user_id].interlocutor_sections.dup #{role: 'user', content: input_text}
+  corrector_conversation = iteration_information_obj.bucket[user_id].corrector_sections.dup
   
   timestamp_input = DateTime.now
-  response = language_processing_ai.generate_response(iteration_information_obj.bucket[user_id].sections)
+  interlocutor_response = Interlocutor.new.generate_response(interlocutor_conversation)
+  corrector_response = Corrector.new.generate_response(corrector_conversation)
   timestamp_output = DateTime.now
-  healthcode = 200
   
-  if response.is_a? Array
-    healthcode = response[0]
-    response = response[1]
-  else
-    iteration_information_obj.bucket[user_id].sections << {role: 'system', content: response}
-    iteration_information_obj.bucket[user_id].conversation_text += " #{response} "
-  end
+ 
+  iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'system', content: interlocutor_response}
+  iteration_information_obj.bucket[user_id].corrector_sections << {role: 'system', content: corrector_response}
+  
   
   iteration_information_obj.bucket[user_id].save_language_processing_ai_data(
     user_id, 
     input_text: input_text,
-    output_text: response, 
+    interlocutor_output_text: interlocutor_response, 
+    corrector_output_text: corrector_response,
     timestamp_input: timestamp_input, 
     timestamp_output: timestamp_output,
-    healthcode: healthcode
+    healthcode: 200
   )
 
-  response
+  interlocutor_response
 end
 
 def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
@@ -233,6 +232,16 @@ def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
   response
 end
 
+def combine_sections(interlocutor_sections, corrector_sections)
+  result = []
+  user = interlocutor_sections.select{ |row| row[:role] == 'user' }
+  interlocutor = interlocutor_sections.select{ |row| row[:role] == 'system' }
+  corrector = corrector_sections.select{ |row| row[:role] == 'system' }
+  user.each_with_index do |user_row, index|
+    result << [[{role: user_row[:role], content: user_row[:content]},{role: corrector[index][:role], content: corrector[index][:content]}],{role: interlocutor[index][:role], content: interlocutor[index][:content]}]
+  end
+  result
+end
 
 
 

@@ -83,23 +83,23 @@ $(document).ready(function() {
   });
   
   function startUpdateLoop() {
+    const historyList = document.getElementById('historyList')
     updateInterval = setInterval(() => {
       fetch('/conversation/update_status')
         .then(response => response.json())
         .then(data => {
           // Update your client view with the latest data from the server
           // This could involve updating the UI, showing new messages, etc.
-          console.log(`incomming conversation text${data['conversation_text']}`)
+          console.log(`incomming conversation text${data['section']}`);
           document.getElementById('user_text').textContent = data['user_text'];
           document.getElementById('ai_answer').textContent = data['ai_answer'];
-          var conversation_text = data['conversation_text'];
-          var historyElement = document.getElementById('history');
-          var formattedConversation = formatConversation(conversation_text);
-          historyElement.innerHTML = formattedConversation;
+          
           // Check if the specific key value pair exists to stop the loop
-          console.log(data)
-          console.log(data['audio_file_key'])
+          console.log(data);
+          console.log(data['audio_file_key']);
           if (data['audio_file_key'] !== null ) {
+            let listItem = createListItem(data['section']);
+            historyList.appendChild(listItem);
             clearInterval(updateInterval);
             downloadAndPlayAudio(data['audio_file_key']);
           }
@@ -155,5 +155,32 @@ $(document).ready(function() {
     });
 
   return formattedVersion;
+  }
+  
+  function createListItem(data) {
+    // Create a new list item element
+    const listItem = document.createElement("li");
+  
+    // Create a div element to hold the paragraphs
+    const divElement = document.createElement("div");
+  
+    // Create and populate the paragraphs
+    const paragraphs = [
+      { role: data[0][0].role, content: data[0][0].content},
+      { role: data[0][1].role, content: data[0][1].content },
+      { role: data[1].role, content: data[1].content }
+    ];
+
+  
+    paragraphs.forEach(paragraphInfo => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = `${paragraphInfo.role}: ${paragraphInfo.content}`;
+      divElement.appendChild(paragraph);
+    });
+  
+    // Append the div element to the list item
+    listItem.appendChild(divElement);
+
+    return listItem;
   }
 });

@@ -15,10 +15,9 @@ class User
   def create_conversation(db_connection)
     conversation_name = 'new Conversation'
     uuid = db_connection.query('SELECT UUID();').first['UUID()']
-    start_text = ''
-    db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation_name , conversation, timestamp_start) VALUES('#{self.user_id}', '#{uuid}', '#{conversation_name}', '#{start_text}', '#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}')")
-    new_conversation = Conversation.new(uuid, start_text, [], conversation_name, 'User:', 'AI:')
-    conversations << new_conversation
+    start_text = 'conversation start: '
+    db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation_name , interlocutor_conversation, corrector_conversation, timestamp_start) VALUES('#{self.user_id}', '#{uuid}', '#{conversation_name}', '#{start_text}', '#{start_text}','#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}')")
+    self.conversations << Conversation.new(uuid, [], [], conversation_name, 'User:', 'AI:')
   end
 
   def delete_conversation(conversation_id)
@@ -55,24 +54,50 @@ class User
 
   def load_conversations(user_id, db_connection)
     return_format = []
-    result = db_connection.query("SELECT conversation_id, conversation_name, conversation FROM conversations WHERE user_id = '#{user_id}';")
+    result = db_connection.query("SELECT conversation_id, conversation_name FROM conversations WHERE user_id = '#{user_id}';")
     result.each do |row|
-      sections = load_conversation_sections(row['conversation_id'], db_connection)
-      return_format << Conversation.new(row['conversation_id'], row['conversation'], sections, row['conversation_name'], 'User:', 'AI:')
+      interlocutor_sections = load_interlocutor_sections(row['conversation_id'], db_connection)
+      corrector_sections = load_corrector_sections(row['conversation_id'], db_connection)
+      return_format << Conversation.new(row['conversation_id'], interlocutor_sections, corrector_sections, row['conversation_name'], 'User:', 'AI:')
     end
     return_format
   end
 
-  def load_conversation_sections(conversation_id, db_connection)
+  def load_interlocutor_sections(conversation_id, db_connection)
     sections = []
     id = db_connection.escape(conversation_id)
-    result = db_connection.query("SELECT input_text, output_text FROM language_processing_ai WHERE conversation_id = '#{id}'")
+    result = db_connection.query("SELECT input_text, interlocutor_output_text FROM language_processing_ai WHERE conversation_id = '#{id}'")
     result.each do |row|
-      sections << {role: 'User', content: row['input_text']}
-      sections << {role: 'System', content: row['output_text']}
+      sections << {role: 'user', content: row['input_text']}
+      sections << {role: 'system', content: row['interlocutor_output_text']}
     end
     sections
   end
+
+  def load_corrector_sections(conversation_id, db_connection)
+    sections = []
+    id = db_connection.escape(conversation_id)
+    result = db_connection.query("SELECT input_text, corrector_output_text FROM language_processing_ai WHERE conversation_id = '#{id}'")
+    result.each do |row|
+      sections << {role: 'user', content: row['input_text']}
+      sections << {role: 'system', content: row['corrector_output_text']}
+    end
+    sections
+  end
+
+  
+  # def load_sections(conversation_id, db_connection, section_type)
+  #   sections = []
+  #   id = db_connection.escape(conversation_id)
+  #   section_type = db_connection.escape(section_type)
+  #   result = db_connection.query("SELECT input_text, interlocutor_output_text FROM language_processing_ai WHERE conversation_id = '#{id}'")
+  #   result.each do |row|
+  #     p row
+  #     sections << {role: 'user', content: row['input_text']}
+      
+  #   end
+  #   sections
+  # end
 
 
   def create_user_in_db(google_auth, db_connection)
@@ -82,14 +107,24 @@ class User
   end
 
   def search_user_id(google_auth, db_connection)
-    result = db_connection.query("SELECT user_id FROM users WHERE google_auth = '#{google_auth}';") #AND surname = #{surname} AND email = #{email}
+    result = db_connection.query("SELECT user_id FROM users WHERE google_auth = '#{google_auth}';")
     result.first.nil? ? [] : result.first['user_id']
   end
 
   def update_conversation_table(db_connection, conversation_id)
     name = db_connection.escape(current_conversation.name)
-    conversation_text = db_connection.escape(current_conversation.conversation_text)
-    db_connection.query("UPDATE conversations SET conversation = '#{conversation_text}', conversation_name = '#{name}' WHERE conversation_id = '#{conversation_id}';")
+    interlocutor_text = db_connection.escape(convert_to_text(current_conversation.interlocutor_sections))
+    corrector_text = db_connection.escape(convert_to_text(current_conversation.corrector_sections))
+
+    db_connection.query("UPDATE conversations SET interlocutor_conversation = '#{interlocutor_text}', corrector_conversation = '#{corrector_text}', conversation_name = '#{name}' WHERE conversation_id = '#{conversation_id}';")
+  end
+
+  def convert_to_text(conversation)
+    text = 'conversation start: '
+    conversation.each do |row|
+      text += "#{row[:role]}: #{row[:content]} "
+    end
+    text
   end
 
  
@@ -108,10 +143,11 @@ class User
                         '#{data[:speech_recognition_transcription_ai_healthcode].to_i}');")
                                       
     input_text = db_connection.escape(data[:language_processing_ai_input_text])
-    output_text = db_connection.escape(data[:language_processing_ai_output_text])
+    interlocutor_output_text = db_connection.escape(data[:language_processing_ai_interlocutor_output_text])
+    corrector_output_text = db_connection.escape(data[:language_processing_ai_corrector_output_text])
     db_connection.query("INSERT INTO language_processing_ai 
-                        (user_id, iteration_id, conversation_id, input_text, output_text, timestamp_input, timestamp_output, healthcode) 
-                        VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}', '#{input_text}', '#{output_text}',
+                        (user_id, iteration_id, conversation_id, input_text, interlocutor_output_text, corrector_output_text, timestamp_input, timestamp_output, healthcode) 
+                        VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}', '#{input_text}', '#{interlocutor_output_text}', '#{corrector_output_text}',
                         '#{data[:language_processing_ai_timestamp_input]}', 
                         '#{data[:language_processing_ai_timestamp_output]}', 
                         '#{data[:language_processing_ai_healthcode].to_i}');")

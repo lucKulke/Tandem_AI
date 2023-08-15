@@ -13,9 +13,16 @@
                 <p id="ai_answer"></p>
             </div>
             <div class="conversation-history">
-                <ul>
+                <ul id="historyList">
                 <% @conversation.each do |section| %>
-                    <li><%="#{section[:role]}: #{section[:content]}"%></li>
+                    <li>
+                        <div>
+                            <p><%= "#{section[0][0][:role]}: #{section[0][0][:content]}"%><p>
+                            <p><%= "#{section[0][1][:role]}: #{section[0][1][:content]}"%><p>
+                            <p><%= "#{section[1][:role]}: #{section[1][:content]}"%><p>
+    
+                        </div>
+                    </li>
                 <% end %>
                 </ul>
                 <!-- More conversation history entries will go here -->
@@ -25,5 +32,6 @@
 <div class="audioPlayer">
   <audio controls id="audioPlayer" style="display:none;"></audio>
 </div>
+
 
 
