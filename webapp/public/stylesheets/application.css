@@ -36,6 +36,24 @@ body {
   overflow-y: scroll;
 }
 
+.conversation_item {
+  margin-bottom: 20px;
+  white-space: nowrap;
+}
+
+.option {
+  display: inline-block;
+}
+
+#delete_conversation {
+  color: #000000;
+  background-color: rgb(253, 66, 66);
+}
+
+#create_conversation {
+  color: #ffffff;
+  background-color: #0084ff;
+}
 
 .user {
   color: #0084ff;

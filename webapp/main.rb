@@ -19,8 +19,6 @@ require_relative "aws_s3_connection"
 
 iteration_information_obj = IncommingStatusInformationData.new
 
-language_processing_ai = LanguageProcessingAI.new
-
 voice_generator_ai = VoiceGeneratorAI.new
 
 db_connection = DatabaseConnection.new.create_tables
@@ -58,7 +56,7 @@ get "/conversation_list" do
   
   if session[:some_conversation_changed] == true 
     @user.conversations.each do |conversation|
-      conversation.name = language_processing_ai.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) if conversation.conversation_id == session[:last_conversation]
+      conversation.name = LanguageProcessingAI.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) if conversation.conversation_id == session[:last_conversation]
     end
     session[:some_conversation_changed] = false
   end
@@ -103,7 +101,6 @@ get '/audio_file/:audio_file' do
 end
 
 
-
 get "/get_upload_url_for_client" do
   redirect "/login" if session[:logged_in?] != true
   session[:some_conversation_changed] = true
@@ -136,6 +133,13 @@ post "/conversation/create" do
   redirect '/conversation_list'
 end
 
+post "/conversation/:id/delete" do
+  redirect "/login" if session[:logged_in?] != true
+  user = active_user_list.load_user(session[:user_id])
+  user.delete_conversation(params['id'], db_connection)
+  redirect "/conversation_list"
+end
+
 
 
 post '/speech_recognition_transcription_ai_result' do
@@ -149,7 +153,7 @@ post '/speech_recognition_transcription_ai_result' do
   speech_recognition_transcription_ai_output_text = speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
   #------------------------------------------------------#
   
-  language_processing_ai_output_text = language_processing_ai_process(iteration_information_obj, speech_recognition_transcription_ai_output_text, user_id, language_processing_ai)
+  language_processing_ai_output_text = language_processing_ai_process(iteration_information_obj, speech_recognition_transcription_ai_output_text, user_id)
   
   #------------------------------------------------------#
 
@@ -184,7 +188,7 @@ def speech_recognition_transcription_ai_process(iteration_information_obj, heade
   output_text
 end
 
-def language_processing_ai_process(iteration_information_obj, input_text, user_id, language_processing_ai)
+def language_processing_ai_process(iteration_information_obj, input_text, user_id)
   
   iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'user', content: input_text}
   iteration_information_obj.bucket[user_id].corrector_sections << {role: 'user', content: input_text}
@@ -193,8 +197,8 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
   corrector_conversation = iteration_information_obj.bucket[user_id].corrector_sections.dup
   
   timestamp_input = DateTime.now
-  interlocutor_response = Interlocutor.new.generate_response(interlocutor_conversation)
-  corrector_response = Corrector.new.generate_response(corrector_conversation)
+  interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
+  corrector_response = Corrector.generate_response(corrector_conversation)
   timestamp_output = DateTime.now
   
  

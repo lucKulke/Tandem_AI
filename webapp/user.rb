@@ -16,12 +16,13 @@ class User
     conversation_name = 'new Conversation'
     uuid = db_connection.query('SELECT UUID();').first['UUID()']
     start_text = 'conversation start: '
-    db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation_name , interlocutor_conversation, corrector_conversation, timestamp_start) VALUES('#{self.user_id}', '#{uuid}', '#{conversation_name}', '#{start_text}', '#{start_text}','#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}')")
+    db_connection.query("INSERT INTO conversations(user_id, conversation_id, conversation_name , interlocutor_conversation, corrector_conversation, timestamp_start, status_code) VALUES('#{self.user_id}', '#{uuid}', '#{conversation_name}', '#{start_text}', '#{start_text}','#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}', 200)")
     self.conversations << Conversation.new(uuid, [], [], conversation_name, 'User:', 'AI:')
   end
 
-  def delete_conversation(conversation_id)
+  def delete_conversation(conversation_id, db_connection)
     conversations.delete_if{|conversation| conversation.conversation_id == conversation_id}
+    db_connection.query("UPDATE conversations SET status_code = 404, timestamp_deleted = '#{DateTime.now.strftime('%Y-%m-%d %H:%M:%S')}' WHERE conversation_id = '#{conversation_id}';")
     current_conversation_id = nil
     current_conversation = nil
   end
@@ -54,7 +55,7 @@ class User
 
   def load_conversations(user_id, db_connection)
     return_format = []
-    result = db_connection.query("SELECT conversation_id, conversation_name FROM conversations WHERE user_id = '#{user_id}';")
+    result = db_connection.query("SELECT conversation_id, conversation_name FROM conversations WHERE user_id = '#{user_id}' AND status_code = 200;")
     result.each do |row|
       interlocutor_sections = load_interlocutor_sections(row['conversation_id'], db_connection)
       corrector_sections = load_corrector_sections(row['conversation_id'], db_connection)
@@ -84,20 +85,6 @@ class User
     end
     sections
   end
-
-  
-  # def load_sections(conversation_id, db_connection, section_type)
-  #   sections = []
-  #   id = db_connection.escape(conversation_id)
-  #   section_type = db_connection.escape(section_type)
-  #   result = db_connection.query("SELECT input_text, interlocutor_output_text FROM language_processing_ai WHERE conversation_id = '#{id}'")
-  #   result.each do |row|
-  #     p row
-  #     sections << {role: 'user', content: row['input_text']}
-      
-  #   end
-  #   sections
-  # end
 
 
   def create_user_in_db(google_auth, db_connection)

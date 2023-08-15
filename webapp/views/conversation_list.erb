@@ -3,11 +3,23 @@
 <ul>
 
 <% @user.conversations.each do |conversation|%>
-  <li><a href="conversation/<%= conversation.conversation_id %>"><%=conversation.name%><a></li>
+  
+    <li>
+      <div class="conversation_item">
+        <div class="option">
+          <a href="conversation/<%= conversation.conversation_id %>"><%=conversation.name%></a> 
+        </div>
+        <div class="option">
+          <form action="conversation/<%= conversation.conversation_id %>/delete" method="post">
+            <button id="delete_conversation" type="submit">Delete</button>
+          </form>
+        </div>
+      </div>
+    </li>
 <% end %>
 </ul>
 
 <form action="/conversation/create" method="Post">
-  <button type="submit">Create Conversation</button>
+  <button id="create_conversation" type="submit">Create Conversation</button>
 </form>
 
