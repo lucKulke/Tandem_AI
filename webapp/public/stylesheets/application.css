@@ -56,3 +56,33 @@ body {
 #audioPlayer{
   align-content: center;
 }
+
+.history-container {
+  width: 100%;
+  max-width: 1200px;
+  height: 50%; /* Set a fixed height to make the container scrollable */
+  margin: 0 auto;
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  overflow-y: auto; /* Enable vertical scrolling */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+#historyList {
+  list-style: none;
+  padding: 0;
+}
+
+.chat-item {
+  margin: 10px;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.chat-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+}

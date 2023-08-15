@@ -12,10 +12,10 @@
             <div class="message-box gpt">
                 <p id="ai_answer"></p>
             </div>
-            <div class="conversation-history">
+            <div class="history-container">
                 <ul id="historyList">
                 <% @conversation.each do |section| %>
-                    <li>
+                    <li class="chat-item">
                         <div>
                             <p><%= "#{section[0][0][:role]}: #{section[0][0][:content]}"%><p>
                             <p><%= "#{section[0][1][:role]}: #{section[0][1][:content]}"%><p>

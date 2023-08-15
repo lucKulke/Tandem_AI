@@ -160,7 +160,7 @@ $(document).ready(function() {
   function createListItem(data) {
     // Create a new list item element
     const listItem = document.createElement("li");
-  
+    listItem.classList.add("chat-item")
     // Create a div element to hold the paragraphs
     const divElement = document.createElement("div");
   
