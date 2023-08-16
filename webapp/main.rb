@@ -19,7 +19,8 @@ require_relative "aws_s3_connection"
 
 iteration_information_obj = IncommingStatusInformationData.new
 
-db_connection = DatabaseConnection.new.create_tables
+db_connection = DatabaseConnection.new
+db_connection.create_tables
 
 active_user_list = ActiveUserList.new
 
@@ -120,13 +121,13 @@ end
 post '/protected/conversation/create' do 
   user = active_user_list.load_user(session[:user_id])
   user.create_conversation(db_connection)
-  redirect '/conversation_list'
+  redirect '/protected/conversation_list'
 end
 
 post '/protected/conversation/:id/delete' do
   user = active_user_list.load_user(session[:user_id])
   user.delete_conversation(params['id'], db_connection)
-  redirect '/conversation_list'
+  redirect '/protected/conversation_list'
 end
 
 
