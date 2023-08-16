@@ -1,4 +1,23 @@
+
+function toggleHiddenContent(event) {
+  if (event.target.classList.contains("show-correction")) {
+    const hiddenContent = event.target.parentElement.nextElementSibling;
+    hiddenContent.classList.toggle("visible");
+  }
+}
+
+// Attach event listener to the list element using event delegation
+document.addEventListener("DOMContentLoaded", function() {
+  const list = document.getElementById("historyList");
+  list.addEventListener("click", toggleHiddenContent);
+});
+
+
+
+
 $(document).ready(function() {
+
+  
   const recordButton = $('#recordButton');
   const stopButton = $('#stopButton');
   const uploadButton = $('#uploadButton');
@@ -90,13 +109,10 @@ $(document).ready(function() {
         .then(data => {
           // Update your client view with the latest data from the server
           // This could involve updating the UI, showing new messages, etc.
-          console.log(`incomming conversation text${data['section']}`);
           document.getElementById('user').textContent = data['user_text'];
           document.getElementById('interlocutor').textContent = data['ai_answer'];
           
           // Check if the specific key value pair exists to stop the loop
-          console.log(data);
-          console.log(data['audio_file_key']);
           if (data['audio_file_key'] !== null ) {
             let listItem = createListItem(data['section']);
             historyList.insertBefore(listItem, historyList.firstChild);
@@ -156,17 +172,27 @@ $(document).ready(function() {
     const userParagraph = document.createElement("p");
     const correctorParagraph = document.createElement("p");
     const interlocutor = document.createElement("p");
+    const showButton = document.createElement("button")
+    const userDiv = document.createElement("div")
     
     userParagraph.className = "user";
     correctorParagraph.className = "corrector";
     interlocutor.className = "interlocutor";
+    showButton.className = "show-correction";
+    showButton.textContent = "Show correction";
+    userDiv.className = "chat-item-user";
     
     userParagraph.textContent = `${data[0][0].role}: ${data[0][0].content}`;
+    userParagraph.appendChild(showButton);
+
     correctorParagraph.textContent = `(Corrector: ${data[0][1].content})`;
+    
+    userDiv.appendChild(userParagraph);
+    userDiv.appendChild(correctorParagraph);
+    
     interlocutor.textContent = `${data[1].role}: ${data[1].content}`;
     
-    divElement.appendChild(userParagraph);
-    divElement.appendChild(correctorParagraph);
+    divElement.appendChild(userDiv);
     divElement.appendChild(interlocutor);
   
   

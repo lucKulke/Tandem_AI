@@ -17,8 +17,10 @@
                 <% @conversation.reverse.each do |section| %>
                     <li class="chat-item">
                         <div>
-                            <p class="user"><%= "#{section[0][0][:role]}: #{section[0][0][:content]}"%><p>
-                            <p class="corrector"><%= "(Corrector: #{section[0][1][:content]})"%><p>
+                            <div class="chat-item-user">
+                                <p class="user"><%= "#{section[0][0][:role]}: #{section[0][0][:content]}"%><button class="show-correction">show correction</button></p>
+                                <p class="corrector"><%= "(Corrector: #{section[0][1][:content]})"%><p>
+                            </div>
                             <p class="interlocutor"><%= "#{section[1][:role]}: #{section[1][:content]}"%><p>
     
                         </div>
