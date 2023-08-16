@@ -68,7 +68,7 @@ $(document).ready(function() {
     // }
     
     try {
-      const response = await fetch('/get_upload_url_for_client', {
+      const response = await fetch('/protected/get_upload_url_for_client', {
         method: 'GET'
       });
       
@@ -104,7 +104,7 @@ $(document).ready(function() {
   function startUpdateLoop() {
     const historyList = document.getElementById('historyList')
     updateInterval = setInterval(() => {
-      fetch('/conversation/update_status')
+      fetch('/protected/conversation/update_status')
         .then(response => response.json())
         .then(data => {
           // Update your client view with the latest data from the server
@@ -129,7 +129,7 @@ $(document).ready(function() {
 
   function downloadAndPlayAudio(audio_file_name) {
     // Initiate a GET request to download the audio file
-    fetch(`/audio_file/${audio_file_name}`)
+    fetch(`/protected/audio_file/${audio_file_name}`)
       .then(response => response.blob())
       .then(blob => {
         // Create a Blob URL for the downloaded audio file
@@ -145,7 +145,7 @@ $(document).ready(function() {
   }
 
   function sendIterationEnd(audio_file_name){
-    fetch('/iteration_end', {
+    fetch('/protected/iteration_end', {
       method: 'GET',
       headers: {
         'Iteration_end' : 'true'

@@ -7,10 +7,10 @@
     <li>
       <div class="conversation_item">
         <div class="option">
-          <a href="conversation/<%= conversation.conversation_id %>"><%=conversation.name%></a> 
+          <a href="/protected/conversation/<%= conversation.conversation_id %>"><%=conversation.name%></a> 
         </div>
         <div class="option">
-          <form action="conversation/<%= conversation.conversation_id %>/delete" method="post">
+          <form action="/protected/conversation/<%= conversation.conversation_id %>/delete" method="post">
             <button id="delete_conversation" type="submit">Delete</button>
           </form>
         </div>
@@ -19,7 +19,7 @@
 <% end %>
 </ul>
 
-<form action="/conversation/create" method="Post">
+<form action="/protected/conversation/create" method="Post">
   <button id="create_conversation" type="submit">Create Conversation</button>
 </form>
 

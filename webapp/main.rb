@@ -38,46 +38,42 @@ configure do
   set :session_secret, ENV['TANDEM_SESSION_SECRET']
 end
 
+before '/protected/*' do
+  redirect '/login' if session[:logged_in?] != true
+end
 
-
-get "/" do
-  redirect "/login" if session[:logged_in?] != true
+get '/' do
   erb :home
 end
 
-get "/login" do
+get '/login' do
   response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
   erb :login
 end
 
-get "/conversation_list" do
-  redirect "/login" if session[:logged_in?] != true
+get '/protected/conversation_list' do
   @user = active_user_list.load_user(session[:user_id])
   
-  if session[:some_conversation_changed] == true 
+  if session[:conversation_changed] == true 
     @user.conversations.each do |conversation|
       conversation.name = LanguageProcessingAI.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) if conversation.conversation_id == session[:last_conversation]
     end
-    session[:some_conversation_changed] = false
+    session[:conversation_changed] = false
   end
-  
   @user.update_conversation_table(db_connection, session[:last_conversation]) if !session[:last_conversation].nil?
-  
   session[:last_conversation] = nil
   
   erb :conversation_list
 end
 
-get "/conversation/update_status" do
-  redirect "/login" if session[:logged_in?] != true
+get '/protected/conversation/update_status' do
   user = active_user_list.load_user(session[:user_id])
   
   content_type :json
   user.current_conversation.client_information.to_json
 end
 
-get "/conversation/:conversation_id" do
-  redirect "/login" if session[:logged_in?] != true
+get '/protected/conversation/:conversation_id' do
   @user = active_user_list.load_user(session[:user_id])
   @user.enter_conversation(params['conversation_id'])
   @conversation = combine_sections(@user.current_conversation.interlocutor_sections, @user.current_conversation.corrector_sections)
@@ -85,8 +81,7 @@ get "/conversation/:conversation_id" do
   erb :conversation
 end 
 
-get "/iteration_end" do
-  redirect "/login" if session[:logged_in?] != true
+get '/protected/iteration_end' do
   if request.env['HTTP_ITERATION_END'] == 'true'
     user = active_user_list.load_user(session[:user_id]) 
     user.upload_conversation_to_db(db_connection)
@@ -95,15 +90,14 @@ get "/iteration_end" do
 end
 
 
-get '/audio_file/:audio_file' do
-  redirect "/login" if session[:logged_in?] != true
+get '/protected/audio_file/:audio_file' do
   send_file "./public/audio_files/#{params['audio_file']}", type: 'audio/wav'
 end
 
 
-get "/get_upload_url_for_client" do
-  redirect "/login" if session[:logged_in?] != true
-  session[:some_conversation_changed] = true
+get '/protected/get_upload_url_for_client' do
+  
+  session[:conversation_changed] = true
   user = active_user_list.load_user(session[:user_id])
   session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
@@ -118,26 +112,24 @@ get "/get_upload_url_for_client" do
   url_and_filename.to_json
 end
 
-post "/auth-receiver" do 
+post '/auth-receiver' do 
   google_auth = request.body.read[/^\=(.*?)&/,1]
   user_id = active_user_list.add_user(google_auth, db_connection)
   session[:user_id] = user_id
   session[:logged_in?] = true
-  redirect "/"
+  redirect '/'
 end
 
-post "/conversation/create" do 
-  redirect "/login" if session[:logged_in?] != true
+post '/protected/conversation/create' do 
   user = active_user_list.load_user(session[:user_id])
   user.create_conversation(db_connection)
   redirect '/conversation_list'
 end
 
-post "/conversation/:id/delete" do
-  redirect "/login" if session[:logged_in?] != true
+post '/protected/conversation/:id/delete' do
   user = active_user_list.load_user(session[:user_id])
   user.delete_conversation(params['id'], db_connection)
-  redirect "/conversation_list"
+  redirect '/conversation_list'
 end
 
 
