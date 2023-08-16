@@ -10,6 +10,7 @@ require "json"
 require "sinatra/cross_origin"
 require "openai"
 require "date"
+require "uri"
 
 require_relative "./database/database_connection"
 require_relative "incomming_status_information_data_storage"
@@ -118,6 +119,12 @@ post '/auth-receiver' do
   redirect '/'
 end
 
+post '/protected/listen_correction' do 
+  p text = URI.decode_www_form_component(request.body.read)[/\s{1}.*\)/][1..-2]
+
+  { audioFileName: 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav' }.to_json
+end
+
 post '/protected/conversation/create' do 
   user = active_user_list.load_user(session[:user_id])
   user.create_conversation(db_connection)
@@ -129,6 +136,8 @@ post '/protected/conversation/:id/delete' do
   user.delete_conversation(params['id'], db_connection)
   redirect '/protected/conversation_list'
 end
+
+
 
 
 

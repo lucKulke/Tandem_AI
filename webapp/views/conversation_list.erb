@@ -6,12 +6,12 @@
   
     <li>
       <div class="conversation_item">
-        <div class="option">
+        <div class="conversation_link">
           <a href="/protected/conversation/<%= conversation.conversation_id %>"><%=conversation.name%></a> 
         </div>
-        <div class="option">
+        <div class="conversation_delete">
           <form action="/protected/conversation/<%= conversation.conversation_id %>/delete" method="post">
-            <button id="delete_conversation" type="submit">Delete</button>
+            <button id="delete_conversation_button" type="submit">Delete</button>
           </form>
         </div>
       </div>
@@ -20,6 +20,6 @@
 </ul>
 
 <form action="/protected/conversation/create" method="Post">
-  <button id="create_conversation" type="submit">Create Conversation</button>
+  <button id="create_conversation_button" type="submit">Create Conversation</button>
 </form>
 

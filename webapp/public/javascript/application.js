@@ -1,10 +1,4 @@
 
-function toggleHiddenContent(event) {
-  if (event.target.classList.contains("show-correction")) {
-    const hiddenContent = event.target.parentElement.nextElementSibling;
-    hiddenContent.classList.toggle("visible");
-  }
-}
 
 // Attach event listener to the list element using event delegation
 document.addEventListener("DOMContentLoaded", function() {
@@ -13,9 +7,38 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 
+function toggleHiddenContent(event) {
+  const hiddenContent = event.target.parentElement.nextElementSibling;
+  if (event.target.classList.contains("show-correction")) {
+    hiddenContent.classList.toggle("visible");
+  };
+}
 
 
 $(document).ready(function() {
+
+
+  $('#historyList').on('click', '.listen_button', async function() {
+    const inputText = $(this).closest('p').text().trim();
+    try {
+      // Send the input text to the server and receive the audio file name
+      const response = await $.ajax({
+        url: '/protected/listen_correction',
+        method: 'POST',
+        data: { text: inputText },
+        dataType: 'json'
+      });
+
+      if (response.audioFileName) {
+        // Trigger download and playback functions using the received audio file name
+        downloadAndPlayAudio(response.audioFileName);
+      } else {
+        console.error('No audio file name received.');
+      }
+    } catch (error) {
+      console.error('Error sending text:', error);
+    }
+  })
 
   
   const recordButton = $('#recordButton');
@@ -118,6 +141,7 @@ $(document).ready(function() {
             historyList.insertBefore(listItem, historyList.firstChild);
             clearInterval(updateInterval);
             downloadAndPlayAudio(data['audio_file_key']);
+            sendIterationEnd(data['audio_file_key']);
           }
         })
         .catch(error => {
@@ -125,7 +149,6 @@ $(document).ready(function() {
         });
     }, 5000); // Polling every 5 seconds
   }
-
 
   function downloadAndPlayAudio(audio_file_name) {
     // Initiate a GET request to download the audio file
@@ -136,14 +159,17 @@ $(document).ready(function() {
         const audioBlobUrl = URL.createObjectURL(blob);
         
         // Play the audio
-        sendIterationEnd(audio_file_name)
+        
         playAudio(audioBlobUrl);
       })
       .catch(error => {
         console.error('Error downloading audio:', error);
       });
   }
+  
 
+
+ 
   function sendIterationEnd(audio_file_name){
     fetch('/protected/iteration_end', {
       method: 'GET',
@@ -172,20 +198,24 @@ $(document).ready(function() {
     const userParagraph = document.createElement("p");
     const correctorParagraph = document.createElement("p");
     const interlocutor = document.createElement("p");
-    const showButton = document.createElement("button")
-    const userDiv = document.createElement("div")
+    const showButton = document.createElement("button");
+    const listenCorrectionButton = document.createElement("button");
+    const userDiv = document.createElement("div");
     
     userParagraph.className = "user";
     correctorParagraph.className = "corrector";
     interlocutor.className = "interlocutor";
     showButton.className = "show-correction";
     showButton.textContent = "Show correction";
+    listenCorrectionButton.className = "listen_button";
+    listenCorrectionButton.textContent = "listen";
     userDiv.className = "chat-item-user";
     
     userParagraph.textContent = `${data[0][0].role}: ${data[0][0].content}`;
     userParagraph.appendChild(showButton);
 
     correctorParagraph.textContent = `(Corrector: ${data[0][1].content})`;
+    correctorParagraph.appendChild(listenCorrectionButton);
     
     userDiv.appendChild(userParagraph);
     userDiv.appendChild(correctorParagraph);
@@ -202,3 +232,4 @@ $(document).ready(function() {
     return listItem;
   }
 });
+

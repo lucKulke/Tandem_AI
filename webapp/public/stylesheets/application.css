@@ -41,17 +41,21 @@ body {
   white-space: nowrap;
 }
 
-.option {
+.conversation_link{
   display: inline-block;
+}
+.conversation_delete{
+  display: inline-block;
+  margin-left: 10px;
 }
 
 
-#delete_conversation {
+#delete_conversation_button {
   color: #000000;
   background-color: rgb(253, 66, 66);
 }
 
-#create_conversation {
+#create_conversation_button {
   color: #ffffff;
   background-color: #0084ff;
 }
