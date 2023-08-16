@@ -19,8 +19,6 @@ require_relative "aws_s3_connection"
 
 iteration_information_obj = IncommingStatusInformationData.new
 
-voice_generator_ai = VoiceGeneratorAI.new
-
 db_connection = DatabaseConnection.new.create_tables
 
 active_user_list = ActiveUserList.new
@@ -96,9 +94,8 @@ end
 
 
 get '/protected/get_upload_url_for_client' do
-  
-  session[:conversation_changed] = true
   user = active_user_list.load_user(session[:user_id])
+  session[:conversation_changed] = true
   session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
   iteration_information_obj.create_iteration_temp_storage(user.user_id, user.current_conversation)
