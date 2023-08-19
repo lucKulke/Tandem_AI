@@ -44,6 +44,29 @@ class LanguageProcessingAI
     response_body = JSON.parse(response.body)
     response_body['choices'][0]['message']['content']
   end
+
+  def self.create_image(text)
+    
+    uri = URI.parse('https://api.openai.com/v1/images/generations')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    headers = {
+      'Content-Type' => 'application/json',
+      'Authorization' => "Bearer #{ENV['CHAT_GPT_KEY']}"
+    }
+
+    payload = {
+      prompt: text,
+      n: 1,
+      size: '512x512'
+    }
+
+
+    response = http.post(uri.path, payload.to_json, headers)
+    response_body = JSON.parse(response.body)
+    response_body['data'][0]['url']#['choices'][0]['message']['content']
+  end
 end
 
 
@@ -61,6 +84,18 @@ class Corrector < LanguageProcessingAI
     conversation.unshift({role: 'system', content: SYSTEM_MESSAGE})
     super(conversation)
   end
+end
+
+class Artist < LanguageProcessingAI
+
+  def self.create_image(text)
+    url = super(text)
+    folder = "./public/images/"
+    tempfile = Down.download(url)
+    FileUtils.mv(tempfile.path, folder + tempfile.original_filename)
+    "/images/" + tempfile.original_filename
+  end
+  
 end
 
 

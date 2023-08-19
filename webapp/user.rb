@@ -21,7 +21,7 @@ class User
     uuid = db_connection.create_uuid
     start_text = 'conversation start: '
     db_connection.create_conversation(self.user_id, uuid, name, start_text, self.timestamp, 200)
-    self.conversations << Conversation.new(uuid, [], [], name, 'User:', 'AI:')
+    self.conversations << Conversation.new(uuid, [], [], name, 'User:', 'AI:', '/images/robo.png')
   end
 
   def delete_conversation(conversation_id, db_connection)
@@ -54,11 +54,11 @@ class User
 
   def load_conversations(user_id, db_connection)
     return_format = []
-    result = db_connection.select_conversation_id_and_name(user_id, 200)
+    result = db_connection.select_conversation_id_and_name_and_picture(user_id, 200)
     result.each do |row|
       interlocutor_sections = db_connection.load_interlocutor_sections(row['conversation_id'])
       corrector_sections = db_connection.load_corrector_sections(row['conversation_id'])
-      return_format << Conversation.new(row['conversation_id'], interlocutor_sections, corrector_sections, row['conversation_name'], 'User:', 'AI:')
+      return_format << Conversation.new(row['conversation_id'], interlocutor_sections, corrector_sections, row['conversation_name'], 'User:', 'AI:', row['conversation_picture'])
     end
     return_format
   end
@@ -76,7 +76,7 @@ class User
   def update_conversation_table(db_connection, conversation_id)
     interlocutor_text = convert_to_text(current_conversation.interlocutor_sections)
     corrector_text = convert_to_text(current_conversation.corrector_sections)
-    db_connection.update_conversation_table(conversation_id, current_conversation.name, interlocutor_text, corrector_text)
+    db_connection.update_conversation_table(conversation_id, current_conversation.name, current_conversation.picture, interlocutor_text, corrector_text)
   end
 
   def convert_to_text(conversation)

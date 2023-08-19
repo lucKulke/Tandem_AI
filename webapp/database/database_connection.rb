@@ -27,6 +27,7 @@ class DatabaseConnection
       user_id VARCHAR(50),
       conversation_id VARCHAR(50),
       conversation_name VARCHAR(80),
+      conversation_picture VARCHAR(100),
       interlocutor_conversation MEDIUMTEXT,
       corrector_conversation MEDIUMTEXT,
       timestamp_start DATETIME,
@@ -101,8 +102,8 @@ class DatabaseConnection
     query("UPDATE conversations SET status_code = '#{status_code}', timestamp_deleted = '#{timestamp}' WHERE conversation_id = '#{conversation_id}';")
   end
   
-  def select_conversation_id_and_name(user_id, status_code)
-    query("SELECT conversation_id, conversation_name FROM conversations WHERE user_id = '#{user_id}' AND status_code = '#{status_code}';")
+  def select_conversation_id_and_name_and_picture(user_id, status_code)
+    query("SELECT conversation_id, conversation_name, conversation_picture FROM conversations WHERE user_id = '#{user_id}' AND status_code = '#{status_code}';")
   end
 
   def load_interlocutor_sections(conversation_id)
@@ -125,11 +126,11 @@ class DatabaseConnection
     sections
   end
 
-  def update_conversation_table(conversation_id, name, interlocutor_text, corrector_text)
+  def update_conversation_table(conversation_id, name, picture,interlocutor_text, corrector_text)
     name = escape(name)
     interlocutor_text = escape(interlocutor_text)
     corrector_text = escape(corrector_text)
-    query("UPDATE conversations SET interlocutor_conversation = '#{interlocutor_text}', corrector_conversation = '#{corrector_text}', conversation_name = '#{name}' WHERE conversation_id = '#{conversation_id}';")
+    query("UPDATE conversations SET interlocutor_conversation = '#{interlocutor_text}', corrector_conversation = '#{corrector_text}', conversation_name = '#{name}', conversation_picture = '#{picture}' WHERE conversation_id = '#{conversation_id}';")
   end
 
   def upload_speech_recognition_transcription_ai_data(user_id, iteration_id, conversation_id, audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)

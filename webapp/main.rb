@@ -11,6 +11,7 @@ require "sinatra/cross_origin"
 require "openai"
 require "date"
 require "uri"
+require "down"
 
 require_relative "./database/database_connection"
 require_relative "incomming_status_information_data_storage"
@@ -56,7 +57,10 @@ get '/protected/conversation_list' do
   
   if session[:conversation_changed] == true 
     @user.conversations.each do |conversation|
-      conversation.name = LanguageProcessingAI.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) if conversation.conversation_id == session[:last_conversation]
+      if conversation.conversation_id == session[:last_conversation]
+        conversation.name = LanguageProcessingAI.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) 
+        conversation.picture = Artist.create_image(conversation.name)
+      end
     end
     session[:conversation_changed] = false
   end
@@ -71,6 +75,18 @@ get '/protected/conversation/update_status' do
   
   content_type :json
   user.current_conversation.client_information.to_json
+end
+
+get '/protected/conversation/create' do 
+  user = active_user_list.load_user(session[:user_id])
+  user.create_conversation(db_connection)
+  redirect '/protected/conversation_list'
+end
+
+get '/protected/conversation/:id/delete' do
+  user = active_user_list.load_user(session[:user_id])
+  user.delete_conversation(params['id'], db_connection)
+  redirect '/protected/conversation_list'
 end
 
 get '/protected/conversation/:conversation_id' do
@@ -124,19 +140,6 @@ post '/protected/listen_correction' do
 
   { audioFileName: 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav' }.to_json
 end
-
-post '/protected/conversation/create' do 
-  user = active_user_list.load_user(session[:user_id])
-  user.create_conversation(db_connection)
-  redirect '/protected/conversation_list'
-end
-
-post '/protected/conversation/:id/delete' do
-  user = active_user_list.load_user(session[:user_id])
-  user.delete_conversation(params['id'], db_connection)
-  redirect '/protected/conversation_list'
-end
-
 
 
 
