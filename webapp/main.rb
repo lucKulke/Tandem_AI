@@ -12,6 +12,8 @@ require "openai"
 require "date"
 require "uri"
 require "down"
+require 'googleauth'
+require 'jwt'
 
 require_relative "./database/database_connection"
 require_relative "incomming_status_information_data_storage"
@@ -48,6 +50,7 @@ get '/' do
 end
 
 get '/login' do
+  @client_id = ENV['GOOGLE_CLIENT_ID']
   response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
   erb :login
 end
@@ -128,11 +131,33 @@ get '/protected/get_upload_url_for_client' do
 end
 
 post '/auth-receiver' do 
-  google_auth = request.body.read[/^\=(.*?)&/,1]
-  user_id = active_user_list.add_user(google_auth, db_connection)
-  session[:user_id] = user_id
-  session[:logged_in?] = true
-  redirect '/'
+  google_auth = request.params['credential']
+  id_token = google_auth # Get the ID token from the POST request
+
+  allowed_client_ids = [ENV['GOOGLE_CLIENT_ID']]
+
+  begin
+    decoded_token = JWT.decode(
+      id_token, nil, false,
+      algorithms: ['RS256'],
+      verify_iss: true,
+      iss: ['accounts.google.com', 'https://accounts.google.com'],
+      verify_aud: true,
+      aud: allowed_client_ids
+    )
+
+    user_info = decoded_token[0]
+
+    user_id = active_user_list.add_user(user_info['sub'], db_connection)
+    session[:user_id] = user_id
+    session[:logged_in?] = true
+    
+    redirect '/'
+  rescue JWT::DecodeError, JWT::VerificationError
+    status 401
+    body 'Token verification failed'
+  end
+  
 end
 
 post '/protected/listen_correction' do 
