@@ -12,8 +12,8 @@ require "openai"
 require "date"
 require "uri"
 require "down"
-require 'googleauth'
-require 'jwt'
+require "googleauth"
+require "jwt"
 
 require_relative "./database/database_connection"
 require_relative "incomming_status_information_data_storage"
