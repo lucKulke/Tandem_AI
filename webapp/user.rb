@@ -20,8 +20,9 @@ class User
     name = 'new Conversation'
     uuid = db_connection.create_uuid
     start_text = 'conversation start: '
-    db_connection.create_conversation(self.user_id, uuid, name, start_text, self.timestamp, 200)
-    self.conversations << Conversation.new(uuid, [], [], name, 'User:', 'AI:', '/images/robo.png')
+    default_picture = '/images/robo.png'
+    db_connection.create_conversation(self.user_id, uuid, name, default_picture, start_text, self.timestamp, 200)
+    self.conversations << Conversation.new(uuid, [], [], name, 'User:', 'AI:', default_picture)
   end
 
   def delete_conversation(conversation_id, db_connection)

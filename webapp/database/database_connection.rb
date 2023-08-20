@@ -92,10 +92,10 @@ class DatabaseConnection
     result.first.nil? ? [] : result.first['user_id']
   end
   
-  def create_conversation(user_id, conversation_id, name, start_text, timestamp, status_code)
+  def create_conversation(user_id, conversation_id, name, default_picture, start_text, timestamp, status_code)
     name = escape(name)
     start_text = escape(start_text)
-    query("INSERT INTO conversations(user_id, conversation_id, conversation_name , interlocutor_conversation, corrector_conversation, timestamp_start, status_code) VALUES('#{user_id}', '#{conversation_id}', '#{name}', '#{start_text}', '#{start_text}','#{timestamp}', '#{status_code}')")
+    query("INSERT INTO conversations(user_id, conversation_id, conversation_name, conversation_picture, interlocutor_conversation, corrector_conversation, timestamp_start, status_code) VALUES('#{user_id}', '#{conversation_id}', '#{name}', '#{default_picture}','#{start_text}', '#{start_text}','#{timestamp}', '#{status_code}')")
   end
 
   def delete_conversation(conversation_id, status_code, timestamp)
