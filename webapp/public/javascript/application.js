@@ -1,9 +1,11 @@
 
+
+// Attach event listener to the list element using event delegation
+
+
+
 $(document).ready(function() {
-  $("#historyList").on("click", ".show-correction", function() {
-    const hiddenContent = $(this).parent().next(".hidden-content");
-    hiddenContent.toggleClass("visible");
-  });
+
 
   $('#historyList').on('click', '.listen_button', async function() {
     const inputText = $(this).closest('p').text().trim();

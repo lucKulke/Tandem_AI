@@ -43,3 +43,16 @@
 
 
 
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const list = document.getElementById("historyList");
+  list.addEventListener("click", toggleHiddenContent);
+});
+
+
+function toggleHiddenContent(event) {
+  const hiddenContent = event.target.parentElement.nextElementSibling;
+  if (event.target.classList.contains("show-correction")) {
+    hiddenContent.classList.toggle("visible");
+  };
+}</script>
