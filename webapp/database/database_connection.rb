@@ -133,6 +133,10 @@ class DatabaseConnection
     query("UPDATE conversations SET interlocutor_conversation = '#{interlocutor_text}', corrector_conversation = '#{corrector_text}', conversation_name = '#{name}', conversation_picture = '#{picture}' WHERE conversation_id = '#{conversation_id}';")
   end
 
+  def update_conversation_picture(conversation_id, picture)
+    query("UPDATE conversations SET conversation_picture = '#{picture}' WHERE conversation_id = '#{conversation_id}'")
+  end
+
   def upload_speech_recognition_transcription_ai_data(user_id, iteration_id, conversation_id, audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)
     output_text = escape(output_text)
     query("INSERT INTO speech_recognition_transcription_ai

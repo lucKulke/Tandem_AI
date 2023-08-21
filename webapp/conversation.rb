@@ -1,5 +1,5 @@
 class Conversation
-  attr_accessor :iteration, :user_labelling, :ai_labelling, :name, :data, :conversation_id, :interlocutor_sections, :corrector_sections, :picture
+  attr_accessor :iteration, :user_labelling, :ai_labelling, :name, :data, :conversation_id, :interlocutor_sections, :corrector_sections, :picture, :picture_changed
   
   def initialize(conversation_id, interlocutor_sections, corrector_sections, name, user_labelling, ai_labelling, picture)
     @conversation_id = conversation_id
@@ -9,6 +9,7 @@ class Conversation
     @ai_labelling = ai_labelling
     @picture = picture
     @name = name
+    @picture_changed = false
     reset
   end
 

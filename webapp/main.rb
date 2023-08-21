@@ -55,14 +55,15 @@ get '/login' do
   erb :login
 end
 
+
 get '/protected/conversation_list' do
   @user = active_user_list.load_user(session[:user_id])
-  
+
   if session[:conversation_changed] == true 
     @user.conversations.each do |conversation|
       if conversation.conversation_id == session[:last_conversation]
+        conversation.picture_changed = true
         conversation.name = LanguageProcessingAI.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) 
-        conversation.picture = Artist.create_image(conversation.name)
       end
     end
     session[:conversation_changed] = false
@@ -86,12 +87,6 @@ get '/protected/conversation/create' do
   redirect '/protected/conversation_list'
 end
 
-get '/protected/conversation/:id/delete' do
-  user = active_user_list.load_user(session[:user_id])
-  user.delete_conversation(params['id'], db_connection)
-  redirect '/protected/conversation_list'
-end
-
 get '/protected/conversation/:conversation_id' do
   @user = active_user_list.load_user(session[:user_id])
   @user.enter_conversation(params['conversation_id'])
@@ -99,6 +94,22 @@ get '/protected/conversation/:conversation_id' do
 
   erb :conversation
 end 
+
+get '/protected/conversation/:id/delete' do
+  user = active_user_list.load_user(session[:user_id])
+  user.delete_conversation(params['id'], db_connection)
+  redirect '/protected/conversation_list'
+end
+
+get '/protected/conversation/:id/new_picture' do
+  conversation_id = params['id']
+  user = active_user_list.load_user(session[:user_id])
+  picture = Artist.create_image(user.current_conversation.name)
+  user.current_conversation.picture = picture
+  user.update_conversation_picture(db_connection, conversation_id, picture)
+  user.current_conversation.picture_changed = false
+  status 200
+end
 
 get '/protected/iteration_end' do
   if request.env['HTTP_ITERATION_END'] == 'true'

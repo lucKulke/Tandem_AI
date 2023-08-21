@@ -80,6 +80,10 @@ class User
     db_connection.update_conversation_table(conversation_id, current_conversation.name, current_conversation.picture, interlocutor_text, corrector_text)
   end
 
+  def update_conversation_picture(db_connection, conversation_id, conversation_picture)
+    db_connection.update_conversation_picture(conversation_id, conversation_picture)
+  end
+
   def convert_to_text(conversation)
     text = 'conversation start: '
     conversation.each do |row|
