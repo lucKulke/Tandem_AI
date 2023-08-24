@@ -240,8 +240,8 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
   timestamp_output = DateTime.now
   
  
-  iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'system', content: interlocutor_response}
-  iteration_information_obj.bucket[user_id].corrector_sections << {role: 'system', content: corrector_response}
+  iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'assistant', content: interlocutor_response}
+  iteration_information_obj.bucket[user_id].corrector_sections << {role: 'assistant', content: corrector_response}
   
   
   iteration_information_obj.bucket[user_id].save_language_processing_ai_data(
@@ -277,8 +277,8 @@ end
 def combine_sections(interlocutor_sections, corrector_sections)
   result = []
   user = interlocutor_sections.select{ |row| row[:role] == 'user' }
-  interlocutor = interlocutor_sections.select{ |row| row[:role] == 'system' }
-  corrector = corrector_sections.select{ |row| row[:role] == 'system' }
+  interlocutor = interlocutor_sections.select{ |row| row[:role] == 'assistant' }
+  corrector = corrector_sections.select{ |row| row[:role] == 'assistant' }
   user.each_with_index do |user_row, index|
     result << [[{role: user_row[:role], content: user_row[:content]},{role: corrector[index][:role], content: corrector[index][:content]}],{role: interlocutor[index][:role], content: interlocutor[index][:content]}]
   end

@@ -71,7 +71,7 @@ end
 
 
 class Interlocutor < LanguageProcessingAI
-  SYSTEM_MESSAGE = "Try to have a conversation with the user.".freeze
+  SYSTEM_MESSAGE = "Try to have a conversation with the user and keep your answer short.".freeze
   def self.generate_response(conversation)
     conversation.unshift({role: 'system', content: SYSTEM_MESSAGE})
     super(conversation)
