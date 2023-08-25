@@ -14,12 +14,16 @@ require "uri"
 require "down"
 require "googleauth"
 require "jwt"
+require "logger"
 
 require_relative "./database/database_connection"
 require_relative "incomming_status_information_data_storage"
 require_relative "ai_connections"
 require_relative "user"
 require_relative "aws_s3_connection"
+
+logger = Logger.new(STDOUT)
+logger.level = Logger::INFO
 
 iteration_information_obj = IncommingStatusInformationData.new
 
@@ -124,21 +128,41 @@ get '/protected/audio_file/:audio_file' do
   send_file "./public/audio_files/#{params['audio_file']}", type: 'audio/wav'
 end
 
+get '/protected/audio_file_upload_success' do 
+  user = active_user_list.load_user(session[:user_id])
+  
+  time_start = Time.now
+  user_text = speech_recognition_transcription_ai_process(user, aws_s3_connection)
+  time_end = Time.now
+  logger.info("Time for runpot: #{time_end - time_start}")
+  
+  time_start = Time.now
+  interlocutor_text = language_processing_ai_process(user, user_text)
+  time_end = Time.now
+  logger.info("Time for gpt: #{time_end - time_start}")
+
+  time_start = Time.now
+  voice_generator_ai_process(user, interlocutor_text, db_connection)
+  time_end = Time.now
+  logger.info("Time for azure: #{time_end - time_start}")
+  
+  status 201
+end
+
 
 get '/protected/get_upload_url_for_client' do
   user = active_user_list.load_user(session[:user_id])
   session[:conversation_changed] = true
   session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
-  iteration_information_obj.create_iteration_temp_storage(user.user_id, user.current_conversation)
   
-  file_name = "recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
+  file_name = "recording_#{db_connection.create_uuid}.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
   
-  url_and_filename = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client')
+  audio_file_url = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client', :put)
 
-  iteration_information_obj.bucket[user.user_id].data[:speech_recognition_transcription_ai_audio_file_key] = file_name
+  user.current_conversation.data[:speech_recognition_transcription_ai_audio_file_key] = file_name
   content_type :json
-  url_and_filename.to_json
+  audio_file_url.to_json
 end
 
 post '/auth-receiver' do 
@@ -172,107 +196,49 @@ post '/auth-receiver' do
 end
 
 post '/protected/listen_correction' do 
-  p text = URI.decode_www_form_component(request.body.read)[/\s{1}.*\)/][1..-2]
+  text = URI.decode_www_form_component(request.body.read)[/\s{1}.*\)/][1..-2]
+  file_name = "recording_#{db_connection.create_uuid}.wav"
+  path = "./public/audio_files/#{file_name}"
+  response = VoiceGeneratorAI.generate_response(text)
 
-  { audioFileName: 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav' }.to_json
-end
-
-
-
-
-post '/speech_recognition_transcription_ai_result' do
-  output_text = request.body.read
-  headers = request.env
-  audio_file_key = headers['HTTP_AUDIO_FILE_KEY']
-
-  user_id = find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
-
-  # post request contains [user_id, output_text, timestamp_input, timestamp_output, healthcode]
-  speech_recognition_transcription_ai_output_text = speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
-  #------------------------------------------------------#
-  
-  language_processing_ai_output_text = language_processing_ai_process(iteration_information_obj, speech_recognition_transcription_ai_output_text, user_id)
-  
-  #------------------------------------------------------#
-
-  voice_generator_ai_audio_file = voice_generator_ai_process(iteration_information_obj, language_processing_ai_output_text, user_id)
-  # store audiofile to audio_files folder
- 
-  aws_s3_connection.upload_audio_file(voice_generator_ai_audio_file)
-  # test
-  status 201
-end
-
-def find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
-  iteration_information_obj.bucket.each do |user_id, conversation|
-    return user_id if conversation.data[:speech_recognition_transcription_ai_audio_file_key] == audio_file_key
+  File.open(path, 'wb') do |file|
+    file.write(response)
   end
-  'not found'
+  { audioFileName: file_name }.to_json
 end
 
-def speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
-  timestamp_input = headers['HTTP_TIMESTAMP_INPUT']
-  timestamp_output = headers['HTTP_TIMESTAMP_OUTPUT']
-  healthcode = headers['HTTP_HEALTHCODE']
 
 
-  iteration_information_obj.bucket[user_id].save_speech_recognition_transcription_ai_data(
-    user_id,
-    output_text: output_text, 
-    timestamp_input: timestamp_input, 
-    timestamp_output: timestamp_output, 
-    healthcode: healthcode
-  )
-  output_text
-end
 
-def language_processing_ai_process(iteration_information_obj, input_text, user_id)
+# post '/speech_recognition_transcription_ai_result' do
+#   output_text = request.body.read
+#   headers = request.env
+#   audio_file_key = headers['HTTP_AUDIO_FILE_KEY']
+
+#   user_id = find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
+
+#   # post request contains [user_id, output_text, timestamp_input, timestamp_output, healthcode]
+#   speech_recognition_transcription_ai_output_text = speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
+#   #------------------------------------------------------#
   
-  iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'user', content: input_text}
-  iteration_information_obj.bucket[user_id].corrector_sections << {role: 'user', content: input_text}
+#   language_processing_ai_output_text = language_processing_ai_process(iteration_information_obj, speech_recognition_transcription_ai_output_text, user_id)
+  
+#   #------------------------------------------------------#
 
-  interlocutor_conversation = iteration_information_obj.bucket[user_id].interlocutor_sections.dup #{role: 'user', content: input_text}
-  corrector_conversation = iteration_information_obj.bucket[user_id].corrector_sections.dup
-  
-  timestamp_input = DateTime.now
-  interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
-  corrector_response = Corrector.generate_response(corrector_conversation)
-  timestamp_output = DateTime.now
-  
+#   voice_generator_ai_audio_file = voice_generator_ai_process(iteration_information_obj, language_processing_ai_output_text, user_id)
+#   # store audiofile to audio_files folder
  
-  iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'assistant', content: interlocutor_response}
-  iteration_information_obj.bucket[user_id].corrector_sections << {role: 'assistant', content: corrector_response}
-  
-  
-  iteration_information_obj.bucket[user_id].save_language_processing_ai_data(
-    user_id, 
-    input_text: input_text,
-    interlocutor_output_text: interlocutor_response, 
-    corrector_output_text: corrector_response,
-    timestamp_input: timestamp_input, 
-    timestamp_output: timestamp_output,
-    healthcode: 200
-  )
+#   aws_s3_connection.upload_audio_file(voice_generator_ai_audio_file)
+#   # test
+#   status 201
+# end
 
-  interlocutor_response
-end
-
-def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
-  timestamp_input = DateTime.now
-  response = 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav'#voice_generator_ai.generate_response(input_text)
-  timestamp_output = DateTime.now
-  
-  iteration_information_obj.bucket[user_id].save_voice_generator_ai_data(
-    user_id,
-    input_text: input_text, 
-    audio_file_key: response,
-    timestamp_input: timestamp_input,
-    timestamp_output: timestamp_output,
-    healthcode: 200
-  )
-  
-  response
-end
+# def find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
+#   iteration_information_obj.bucket.each do |user_id, conversation|
+#     return user_id if conversation.data[:speech_recognition_transcription_ai_audio_file_key] == audio_file_key
+#   end
+#   'not found'
+# end
 
 def combine_sections(interlocutor_sections, corrector_sections)
   result = []
@@ -284,6 +250,150 @@ def combine_sections(interlocutor_sections, corrector_sections)
   end
   result
 end
+
+
+def speech_recognition_transcription_ai_process(user, aws_s3_connection)
+  conversation = user.current_conversation
+  audio_file_key = conversation.data[:speech_recognition_transcription_ai_audio_file_key]
+  audio_file_url = aws_s3_connection.get_presigned_url_s3(audio_file_key, 'upload_client', :get)[:url]
+  
+  timestamp_input = user.timestamp
+  response = SpeechRecogTransAI.generate_response(audio_file_url)
+  timestamp_output = user.timestamp
+  healthcode = 200
+
+  conversation.save_speech_recognition_transcription_ai_data(
+    user.user_id, 
+    output_text: response, 
+    timestamp_input: timestamp_input, 
+    timestamp_output: timestamp_output, 
+    healthcode: healthcode
+  )
+  response
+end
+
+def language_processing_ai_process(user, user_text)
+  conversation = user.current_conversation
+  conversation.interlocutor_sections << {role: 'user', content: user_text}
+  conversation.corrector_sections << {role: 'user', content: user_text}
+
+  interlocutor_conversation = conversation.interlocutor_sections.dup #{role: 'user', content: input_text}
+  corrector_conversation = conversation.corrector_sections.dup
+
+  timestamp_input = user.timestamp
+  interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
+  corrector_response = Corrector.generate_response(corrector_conversation)
+  timestamp_output = user.timestamp
+  healthcode = 200
+  conversation.interlocutor_sections << {role: 'assistant', content: interlocutor_response}
+  conversation.corrector_sections << {role: 'assistant', content: corrector_response}
+  
+  conversation.save_language_processing_ai_data(
+    user.user_id, 
+    input_text: user_text,
+    interlocutor_output_text: interlocutor_response,
+    corrector_output_text: corrector_response,
+    timestamp_input: timestamp_input, 
+    timestamp_output: timestamp_output, 
+    healthcode: healthcode
+  )
+  interlocutor_response
+end
+
+def voice_generator_ai_process(user, input_text, db_connection)
+  file_name = "recording_#{db_connection.create_uuid}.wav"
+  path = "./public/audio_files/#{file_name}"
+  
+  timestamp_input = user.timestamp
+  response = VoiceGeneratorAI.generate_response(input_text)
+  timestamp_output = user.timestamp
+  
+  File.open(path, 'wb') do |file|
+    file.write(response)
+  end
+  
+  user.current_conversation.save_voice_generator_ai_data(
+    user.user_id,
+    input_text: input_text, 
+    audio_file_key: file_name,
+    timestamp_input: timestamp_input,
+    timestamp_output: timestamp_output,
+    healthcode: 200
+  )
+
+  file_name
+
+end
+
+
+
+
+
+# def speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
+#   timestamp_input = headers['HTTP_TIMESTAMP_INPUT']
+#   timestamp_output = headers['HTTP_TIMESTAMP_OUTPUT']
+#   healthcode = headers['HTTP_HEALTHCODE']
+
+
+#   iteration_information_obj.bucket[user_id].save_speech_recognition_transcription_ai_data(
+#     user_id,
+#     output_text: output_text, 
+#     timestamp_input: timestamp_input, 
+#     timestamp_output: timestamp_output, 
+#     healthcode: healthcode
+#   )
+#   output_text
+# end
+
+# def language_processing_ai_process(iteration_information_obj, input_text, user_id)
+  
+#   iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'user', content: input_text}
+#   iteration_information_obj.bucket[user_id].corrector_sections << {role: 'user', content: input_text}
+
+#   interlocutor_conversation = iteration_information_obj.bucket[user_id].interlocutor_sections.dup #{role: 'user', content: input_text}
+#   corrector_conversation = iteration_information_obj.bucket[user_id].corrector_sections.dup
+  
+#   timestamp_input = DateTime.now
+#   interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
+#   corrector_response = Corrector.generate_response(corrector_conversation)
+#   timestamp_output = DateTime.now
+  
+ 
+#   iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'assistant', content: interlocutor_response}
+#   iteration_information_obj.bucket[user_id].corrector_sections << {role: 'assistant', content: corrector_response}
+  
+  
+#   iteration_information_obj.bucket[user_id].save_language_processing_ai_data(
+#     user_id, 
+#     input_text: input_text,
+#     interlocutor_output_text: interlocutor_response, 
+#     corrector_output_text: corrector_response,
+#     timestamp_input: timestamp_input, 
+#     timestamp_output: timestamp_output,
+#     healthcode: 200
+#   )
+
+#   interlocutor_response
+# end
+
+# def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
+#   timestamp_input = DateTime.now
+#   response = 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav'#voice_generator_ai.generate_response(input_text)
+#   timestamp_output = DateTime.now
+  
+#   iteration_information_obj.bucket[user_id].save_voice_generator_ai_data(
+#     user_id,
+#     input_text: input_text, 
+#     audio_file_key: response,
+#     timestamp_input: timestamp_input,
+#     timestamp_output: timestamp_output,
+#     healthcode: 200
+#   )
+  
+#   response
+# end
+
+
 
 
 

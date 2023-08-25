@@ -40,14 +40,14 @@ class Conversation
 
   def last_added_section
     [
-      [{role: 'user', content: data[:language_processing_ai_input_text] }, {role: 'system', content: data[:language_processing_ai_corrector_output_text]}],
-      {role: 'system', content: data[:language_processing_ai_interlocutor_output_text]}
+      [{role: 'user', content: data[:language_processing_ai_input_text] }, {role: 'assistant', content: data[:language_processing_ai_corrector_output_text]}],
+      {role: 'assistant', content: data[:language_processing_ai_interlocutor_output_text]}
     ] 
   end
 
 
   def save_speech_recognition_transcription_ai_data(user_id, audio_file_key: nil, output_text: nil, timestamp_input: nil, timestamp_output: nil, healthcode: nil)
-    self.data[:speech_recognition_transcription_ai_audio_file_key] = audio_file_key
+    self.data[:speech_recognition_transcription_ai_audio_file_key] = audio_file_key unless audio_file_key.nil?
     self.data[:speech_recognition_transcription_ai_output_text] = output_text
     self.data[:speech_recognition_transcription_ai_timestamp_input] = timestamp_input
     self.data[:speech_recognition_transcription_ai_timestamp_output] = timestamp_output

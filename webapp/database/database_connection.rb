@@ -111,7 +111,7 @@ class DatabaseConnection
     result = query("SELECT input_text, interlocutor_output_text FROM language_processing_ai WHERE conversation_id = '#{conversation_id}'")
     result.each do |row|
       sections << {role: 'user', content: row['input_text']}
-      sections << {role: 'system', content: row['interlocutor_output_text']}
+      sections << {role: 'assistant', content: row['interlocutor_output_text']}
     end
     sections
   end
@@ -121,7 +121,7 @@ class DatabaseConnection
     result = query("SELECT input_text, corrector_output_text FROM language_processing_ai WHERE conversation_id = '#{conversation_id}'")
     result.each do |row|
       sections << {role: 'user', content: row['input_text']}
-      sections << {role: 'system', content: row['corrector_output_text']}
+      sections << {role: 'assistant', content: row['corrector_output_text']}
     end
     sections
   end
