@@ -132,7 +132,7 @@ get '/protected/get_upload_url_for_client' do
   user.current_conversation.reset
   iteration_information_obj.create_iteration_temp_storage(user.user_id, user.current_conversation)
   
-  file_name = "recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
+  file_name = "recording_1234567.wav"# "recording_#{db_connection.create_uuid}.wav"
   
   url_and_filename = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client')
 
@@ -172,9 +172,15 @@ post '/auth-receiver' do
 end
 
 post '/protected/listen_correction' do 
-  p text = URI.decode_www_form_component(request.body.read)[/\s{1}.*\)/][1..-2]
+  text = URI.decode_www_form_component(request.body.read)[/\s{1}.*\)/][1..-2]
+  file_name = "recording_#{db_connection.create_uuid}.wav"
+  path = "./public/audio_files/#{file_name}"
+  response = VoiceGeneratorAI.generate_response(text)
 
-  { audioFileName: 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav' }.to_json
+  File.open(path, 'wb') do |file|
+    file.write(response)
+  end
+  { audioFileName: file_name }.to_json
 end
 
 
@@ -195,7 +201,7 @@ post '/speech_recognition_transcription_ai_result' do
   
   #------------------------------------------------------#
 
-  voice_generator_ai_audio_file = voice_generator_ai_process(iteration_information_obj, language_processing_ai_output_text, user_id)
+  voice_generator_ai_audio_file = voice_generator_ai_process(iteration_information_obj, language_processing_ai_output_text, user_id, db_connection)
   # store audiofile to audio_files folder
  
   aws_s3_connection.upload_audio_file(voice_generator_ai_audio_file)
@@ -257,21 +263,28 @@ def language_processing_ai_process(iteration_information_obj, input_text, user_i
   interlocutor_response
 end
 
-def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
+def voice_generator_ai_process(iteration_information_obj, input_text, user_id, db_connection)
+  file_name = "recording_#{db_connection.create_uuid}.wav"
+  path = "./public/audio_files/#{file_name}"
+  
   timestamp_input = DateTime.now
-  response = 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav'#voice_generator_ai.generate_response(input_text)
+  response = VoiceGeneratorAI.generate_response(input_text)#voice_generator_ai.generate_response(input_text)
   timestamp_output = DateTime.now
+
+  File.open(path, 'wb') do |file|
+    file.write(response)
+  end
   
   iteration_information_obj.bucket[user_id].save_voice_generator_ai_data(
     user_id,
     input_text: input_text, 
-    audio_file_key: response,
+    audio_file_key: file_name,
     timestamp_input: timestamp_input,
     timestamp_output: timestamp_output,
     healthcode: 200
   )
   
-  response
+  file_name
 end
 
 def combine_sections(interlocutor_sections, corrector_sections)
