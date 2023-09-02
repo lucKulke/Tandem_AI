@@ -101,37 +101,17 @@ end
 
 class SpeechRecogTransAI
   def self.generate_response(audio_file_url)
-    url = URI("https://api.runpod.ai/v2/whisper/runsync")
+    url = URI("http://localhost:8002/invocations")
 
     http = Net::HTTP.new(url.host, url.port)
-    http.use_ssl = true
 
     request = Net::HTTP::Post.new(url)
-    request["accept"] = 'application/json'
-    request["content-type"] = 'application/json'
-    request["authorization"] = ENV['RUNPOT_WHISPER']
-    request.body = { input: {
-      audio: audio_file_url,
-      model: "tiny",
-      transcription: "plain text",
-      translate: false,
-      language: "en",
-      temperature: 0,
-      best_of: 5,
-      beam_size: 5,
-      patience: 1,
-      suppress_tokens: "-1",
-      initial_prompt: "None",
-      condition_on_previous_text: false,
-      temperature_increment_on_fallback: 0.2,
-      compression_ratio_threshold: 2.4,
-      logprob_threshold: -1,
-      no_speech_threshold: 0.6
-    } }.to_json
+    
+    request.body = {input: audio_file_url, size: 'tiny'}.to_json
 
     response = http.request(request)
     responsebody = JSON.parse(response.body)
-    responsebody['output']['transcription']
+    p responsebody['predictions']['segments'][0][4]
     
   end
 end

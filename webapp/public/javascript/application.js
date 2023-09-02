@@ -106,7 +106,7 @@ $(document).ready(function() {
 
       alert('Recording uploaded successfully to S3!');
       uploadSuccess();
-
+      
       startUpdateLoop();
     } catch (error) {
       alert('An error occurred while uploading the recording.');
