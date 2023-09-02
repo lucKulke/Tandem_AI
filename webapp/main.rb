@@ -67,7 +67,7 @@ get '/protected/conversation_list' do
     @user.conversations.each do |conversation|
       if conversation.conversation_id == session[:last_conversation]
         conversation.picture_changed = true
-        conversation.name = LanguageProcessingAI.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) 
+        conversation.name = LanguageProcessingAI.generate_response(12, Summarizer.new(@user.current_conversation.interlocutor_sections.dup)) 
       end
     end
     session[:conversation_changed] = false
@@ -134,17 +134,17 @@ get '/protected/audio_file_upload_success' do
   time_start = Time.now
   user_text = speech_recognition_transcription_ai_process(user, aws_s3_connection)
   time_end = Time.now
-  logger.info("Time for runpot: #{time_end - time_start}")
+  logger.info("Time for speech_recog_trans_ai: #{time_end - time_start}")
   
   time_start = Time.now
   interlocutor_text = language_processing_ai_process(user, user_text)
   time_end = Time.now
-  logger.info("Time for gpt: #{time_end - time_start}")
+  logger.info("Time for language_processing_ai: #{time_end - time_start}")
 
   time_start = Time.now
   voice_generator_ai_process(user, interlocutor_text, db_connection)
   time_end = Time.now
-  logger.info("Time for azure: #{time_end - time_start}")
+  logger.info("Time for voice_generation_ai: #{time_end - time_start}")
   
   status 201
 end
@@ -281,8 +281,9 @@ def language_processing_ai_process(user, user_text)
   corrector_conversation = conversation.corrector_sections.dup
 
   timestamp_input = user.timestamp
-  interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
-  corrector_response = Corrector.generate_response(corrector_conversation)
+  corrector_response, interlocutor_response = LanguageProcessingAI.generate_response(100, Corrector.new(corrector_conversation), Interlocutor.new(interlocutor_conversation))
+  # interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
+  # corrector_response = Corrector.generate_response(corrector_conversation)
   timestamp_output = user.timestamp
   healthcode = 200
   conversation.interlocutor_sections << {role: 'assistant', content: interlocutor_response}

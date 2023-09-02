@@ -1,48 +1,44 @@
 require 'net/http'
 class LanguageProcessingAI
 
-  def self.generate_response(conversation)
-    uri = URI.parse('https://api.openai.com/v1/chat/completions')
+  def self.generate_response(token, *instances)
+
+    instance_list = {}
+
+    instances.each do |instance|
+      instance_list[instance.name.to_sym] = {
+        system_message: instance.system_message,
+        sections: instance.conversation
+      }
+    end
+
+    uri = URI.parse('http://localhost:8001/chat_gpt')
     http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
 
     headers = {
-      'Content-Type' => 'application/json',
-      'Authorization' => "Bearer #{ENV['CHAT_GPT_KEY']}"
+      'Content-Type' => 'application/json'
     }
 
     payload = {
+      instances: instance_list,
       model: 'gpt-3.5-turbo',
-      messages: conversation,
-      max_tokens: 100
+      token: token
     }
+
+
+    puts payload.to_json
 
     response = http.post(uri.path, payload.to_json, headers)
     response_body = JSON.parse(response.body)
-    response_body['choices'][0]['message']['content']
-  end
-
-  def self.summarise_text_to_title(sections)
-    sections.unshift({role: "system", content: "Summarize the conversation as short as possible to a title" })
-    
-    uri = URI.parse('https://api.openai.com/v1/chat/completions')
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    headers = {
-      'Content-Type' => 'application/json',
-      'Authorization' => "Bearer #{ENV['CHAT_GPT_KEY']}"
-    }
-
-    payload = {
-      model: 'gpt-3.5-turbo',
-      messages: sections,
-      max_tokens: 12
-    }
-
-    response = http.post(uri.path, payload.to_json, headers)
-    response_body = JSON.parse(response.body)
-    response_body['choices'][0]['message']['content']
+    answer = []
+    puts
+    p response_body
+    puts
+    response_body.each do |instance_name, data|
+      answer << data['content']
+    end
+    return answer[0] if answer.size == 1 
+    answer
   end
 
   def self.create_image(text)
@@ -69,31 +65,63 @@ class LanguageProcessingAI
   end
 end
 
-
-class Interlocutor < LanguageProcessingAI
-  SYSTEM_MESSAGE = "Try to have a conversation with the user and keep your answer short.".freeze
-  def self.generate_response(conversation)
-    conversation.unshift({role: 'system', content: SYSTEM_MESSAGE})
-    super(conversation)
+class ChatInstance
+  attr_reader :conversation, :system_message, :name
+  def initialize(name, system_message, conversation)
+    @conversation = conversation
+    @system_message = system_message
+    @name = name
   end
 end
 
-class Corrector < LanguageProcessingAI
-  SYSTEM_MESSAGE = "Correct the grammar from the user".freeze
-  def self.generate_response(conversation)
-    conversation.unshift({role: 'system', content: SYSTEM_MESSAGE})
-    super(conversation)
+class Interlocutor < ChatInstance
+  def initialize(conversation)
+    super('interlocutor', 'Try to have a conversation with the user and keep your answer short.', conversation)
+  end
+end
+
+class Corrector < ChatInstance
+  def initialize(conversation)
+    super('corrector', 'Correct the grammer of the user', conversation)
+  end
+end
+
+class Summarizer < ChatInstance
+  def initialize(conversation)
+    super('summerizer', 'Summarize the conversation as short as possible to a title.', conversation)
   end
 end
 
 class Artist < LanguageProcessingAI
 
   def self.create_image(text)
-    url = super(text)
+    url = self.dalle_generate_response(text)
     folder = "./public/images/"
     tempfile = Down.download(url)
     FileUtils.mv(tempfile.path, folder + tempfile.original_filename)
     "/images/" + tempfile.original_filename
+  end
+
+  def self.dalle_generate_response(text)
+    uri = URI.parse('https://api.openai.com/v1/images/generations')
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    headers = {
+      'Content-Type' => 'application/json',
+      'Authorization' => "Bearer #{ENV['CHAT_GPT_KEY']}"
+    }
+
+    payload = {
+      prompt: text,
+      n: 1,
+      size: '512x512'
+    }
+
+
+    response = http.post(uri.path, payload.to_json, headers)
+    response_body = JSON.parse(response.body)
+    response_body['data'][0]['url']
   end
   
 end
