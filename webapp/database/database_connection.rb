@@ -11,7 +11,19 @@ class DatabaseConnection
   }
 
   def initialize
-    @db = Mysql2::Client.new(DB_CONFIG)
+    begin
+      retries ||= 0
+      @db = Mysql2::Client.new(DB_CONFIG)
+    rescue Mysql2::Error => e
+      puts e
+      puts "MySQL server not ready yet, retrying in 20 second "
+      sleep 20
+      retries += 1
+      if retries == 3
+        retry
+      end
+      
+    end
   end
 
   def establish

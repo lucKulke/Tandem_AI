@@ -1,5 +1,5 @@
 require "sinatra"
-require "sinatra/reloader"
+require "sinatra/reloader" if ENV['RACK_ENV'] == 'development'
 require "mysql2"
 require "tilt/erubis"
 require "redcarpet"
@@ -8,7 +8,6 @@ require "aws-sdk-s3"
 require "securerandom"
 require "json"
 require "sinatra/cross_origin"
-require "openai"
 require "date"
 require "uri"
 require "down"
@@ -25,7 +24,6 @@ require_relative "aws_s3_connection"
 logger = Logger.new(STDOUT)
 logger.level = Logger::INFO
 
-iteration_information_obj = IncommingStatusInformationData.new
 
 db_connection = DatabaseConnection.new
 db_connection.create_tables
@@ -41,6 +39,7 @@ aws_s3_connection = AwsS3.new(bucket_name: bucket_name, region: region, access_k
 
 
 configure do
+  enable :cross_origin
   enable :sessions
   set :session_secret, ENV['TANDEM_SESSION_SECRET']
 end
@@ -67,7 +66,7 @@ get '/protected/conversation_list' do
     @user.conversations.each do |conversation|
       if conversation.conversation_id == session[:last_conversation]
         conversation.picture_changed = true
-        conversation.name = LanguageProcessingAI.summarise_text_to_title(@user.current_conversation.interlocutor_sections.dup) 
+        conversation.name = LanguageProcessingAI.generate_response(12, Summarizer.new(@user.current_conversation.interlocutor_sections.dup)) 
       end
     end
     session[:conversation_changed] = false
@@ -134,17 +133,17 @@ get '/protected/audio_file_upload_success' do
   time_start = Time.now
   user_text = speech_recognition_transcription_ai_process(user, aws_s3_connection)
   time_end = Time.now
-  logger.info("Time for runpot: #{time_end - time_start}")
+  logger.info("Time for speech_recog_trans_ai: #{time_end - time_start}")
   
   time_start = Time.now
   interlocutor_text = language_processing_ai_process(user, user_text)
   time_end = Time.now
-  logger.info("Time for gpt: #{time_end - time_start}")
+  logger.info("Time for language_processing_ai: #{time_end - time_start}")
 
   time_start = Time.now
   voice_generator_ai_process(user, interlocutor_text, db_connection)
   time_end = Time.now
-  logger.info("Time for azure: #{time_end - time_start}")
+  logger.info("Time for voice_generation_ai: #{time_end - time_start}")
   
   status 201
 end
@@ -208,38 +207,6 @@ post '/protected/listen_correction' do
 end
 
 
-
-
-# post '/speech_recognition_transcription_ai_result' do
-#   output_text = request.body.read
-#   headers = request.env
-#   audio_file_key = headers['HTTP_AUDIO_FILE_KEY']
-
-#   user_id = find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
-
-#   # post request contains [user_id, output_text, timestamp_input, timestamp_output, healthcode]
-#   speech_recognition_transcription_ai_output_text = speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
-#   #------------------------------------------------------#
-  
-#   language_processing_ai_output_text = language_processing_ai_process(iteration_information_obj, speech_recognition_transcription_ai_output_text, user_id)
-  
-#   #------------------------------------------------------#
-
-#   voice_generator_ai_audio_file = voice_generator_ai_process(iteration_information_obj, language_processing_ai_output_text, user_id)
-#   # store audiofile to audio_files folder
- 
-#   aws_s3_connection.upload_audio_file(voice_generator_ai_audio_file)
-#   # test
-#   status 201
-# end
-
-# def find_user_id_by_audio_file_key(audio_file_key, iteration_information_obj)
-#   iteration_information_obj.bucket.each do |user_id, conversation|
-#     return user_id if conversation.data[:speech_recognition_transcription_ai_audio_file_key] == audio_file_key
-#   end
-#   'not found'
-# end
-
 def combine_sections(interlocutor_sections, corrector_sections)
   result = []
   user = interlocutor_sections.select{ |row| row[:role] == 'user' }
@@ -281,8 +248,7 @@ def language_processing_ai_process(user, user_text)
   corrector_conversation = conversation.corrector_sections.dup
 
   timestamp_input = user.timestamp
-  interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
-  corrector_response = Corrector.generate_response(corrector_conversation)
+  corrector_response, interlocutor_response = LanguageProcessingAI.generate_response(100, Corrector.new(corrector_conversation), Interlocutor.new(interlocutor_conversation))
   timestamp_output = user.timestamp
   healthcode = 200
   conversation.interlocutor_sections << {role: 'assistant', content: interlocutor_response}
@@ -328,70 +294,6 @@ end
 
 
 
-
-# def speech_recognition_transcription_ai_process(iteration_information_obj, headers, output_text, user_id)
-#   timestamp_input = headers['HTTP_TIMESTAMP_INPUT']
-#   timestamp_output = headers['HTTP_TIMESTAMP_OUTPUT']
-#   healthcode = headers['HTTP_HEALTHCODE']
-
-
-#   iteration_information_obj.bucket[user_id].save_speech_recognition_transcription_ai_data(
-#     user_id,
-#     output_text: output_text, 
-#     timestamp_input: timestamp_input, 
-#     timestamp_output: timestamp_output, 
-#     healthcode: healthcode
-#   )
-#   output_text
-# end
-
-# def language_processing_ai_process(iteration_information_obj, input_text, user_id)
-  
-#   iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'user', content: input_text}
-#   iteration_information_obj.bucket[user_id].corrector_sections << {role: 'user', content: input_text}
-
-#   interlocutor_conversation = iteration_information_obj.bucket[user_id].interlocutor_sections.dup #{role: 'user', content: input_text}
-#   corrector_conversation = iteration_information_obj.bucket[user_id].corrector_sections.dup
-  
-#   timestamp_input = DateTime.now
-#   interlocutor_response = Interlocutor.generate_response(interlocutor_conversation)
-#   corrector_response = Corrector.generate_response(corrector_conversation)
-#   timestamp_output = DateTime.now
-  
- 
-#   iteration_information_obj.bucket[user_id].interlocutor_sections << {role: 'assistant', content: interlocutor_response}
-#   iteration_information_obj.bucket[user_id].corrector_sections << {role: 'assistant', content: corrector_response}
-  
-  
-#   iteration_information_obj.bucket[user_id].save_language_processing_ai_data(
-#     user_id, 
-#     input_text: input_text,
-#     interlocutor_output_text: interlocutor_response, 
-#     corrector_output_text: corrector_response,
-#     timestamp_input: timestamp_input, 
-#     timestamp_output: timestamp_output,
-#     healthcode: 200
-#   )
-
-#   interlocutor_response
-# end
-
-# def voice_generator_ai_process(iteration_information_obj, input_text, user_id)
-#   timestamp_input = DateTime.now
-#   response = 'recording_49688ab8-9eb4-48f5-911e-e968ae5b99f4.wav'#voice_generator_ai.generate_response(input_text)
-#   timestamp_output = DateTime.now
-  
-#   iteration_information_obj.bucket[user_id].save_voice_generator_ai_data(
-#     user_id,
-#     input_text: input_text, 
-#     audio_file_key: response,
-#     timestamp_input: timestamp_input,
-#     timestamp_output: timestamp_output,
-#     healthcode: 200
-#   )
-  
-#   response
-# end
 
 
 

@@ -4,8 +4,8 @@ GEM
     addressable (2.8.5)
       public_suffix (>= 2.0.2, < 6.0)
     aws-eventstream (1.2.0)
-    aws-partitions (1.803.0)
-    aws-sdk-core (3.180.3)
+    aws-partitions (1.816.0)
+    aws-sdk-core (3.181.0)
       aws-eventstream (~> 1, >= 1.0.2)
       aws-partitions (~> 1, >= 1.651.0)
       aws-sigv4 (~> 1.5)
@@ -13,21 +13,18 @@ GEM
     aws-sdk-kms (1.71.0)
       aws-sdk-core (~> 3, >= 3.177.0)
       aws-sigv4 (~> 1.1)
-    aws-sdk-s3 (1.132.1)
-      aws-sdk-core (~> 3, >= 3.179.0)
+    aws-sdk-s3 (1.134.0)
+      aws-sdk-core (~> 3, >= 3.181.0)
       aws-sdk-kms (~> 1)
       aws-sigv4 (~> 1.6)
     aws-sigv4 (1.6.0)
       aws-eventstream (~> 1, >= 1.0.2)
-    backports (3.24.1)
     down (5.4.1)
       addressable (~> 2.8)
     erubis (2.7.0)
     faraday (2.7.10)
       faraday-net_http (>= 2.0, < 3.1)
       ruby2_keywords (>= 0.0.4)
-    faraday-multipart (1.0.4)
-      multipart-post (~> 2)
     faraday-net_http (3.0.2)
     googleauth (1.7.0)
       faraday (>= 0.17.3, < 3.a)
@@ -40,44 +37,43 @@ GEM
     jwt (2.7.1)
     memoist (0.16.2)
     multi_json (1.15.0)
-    multipart-post (2.3.0)
+    mustermann (3.0.0)
+      ruby2_keywords (~> 0.0.1)
     mysql2 (0.5.5)
     nio4r (2.5.9)
+    nokogiri (1.15.4-x86_64-darwin)
+      racc (~> 1.4)
     os (1.1.4)
     public_suffix (5.0.3)
-    puma (6.3.0)
+    puma (6.3.1)
       nio4r (~> 2.0)
-    rack (1.6.13)
-    rack-protection (1.5.5)
-      rack
-    rack-test (2.1.0)
-      rack (>= 1.3)
+    racc (1.7.1)
+    rack (2.2.8)
+    rack-protection (3.1.0)
+      rack (~> 2.2, >= 2.2.4)
     redcarpet (3.6.0)
-    ruby-openai (4.2.0)
-      faraday (>= 1)
-      faraday-multipart (>= 1)
     ruby2_keywords (0.0.5)
     signet (0.17.0)
       addressable (~> 2.8)
       faraday (>= 0.17.5, < 3.a)
       jwt (>= 1.5, < 3.0)
       multi_json (~> 1.10)
-    sinatra (1.4.8)
-      rack (~> 1.5)
-      rack-protection (~> 1.4)
-      tilt (>= 1.3, < 3)
-    sinatra-contrib (1.4.7)
-      backports (>= 2.0)
+    sinatra (3.1.0)
+      mustermann (~> 3.0)
+      rack (~> 2.2, >= 2.2.4)
+      rack-protection (= 3.1.0)
+      tilt (~> 2.0)
+    sinatra-contrib (3.1.0)
       multi_json
-      rack-protection
-      rack-test
-      sinatra (~> 1.4.0)
-      tilt (>= 1.3, < 3)
+      mustermann (~> 3.0)
+      rack-protection (= 3.1.0)
+      sinatra (= 3.1.0)
+      tilt (~> 2.0)
     sinatra-cross_origin (0.4.0)
     tilt (2.2.0)
 
 PLATFORMS
-  x86_64-darwin-20
+  x86_64-darwin-22
 
 DEPENDENCIES
   aws-sdk-s3 (~> 1.132)
@@ -86,11 +82,10 @@ DEPENDENCIES
   googleauth
   jwt
   mysql2
+  nokogiri
   puma
-  rack-test
   redcarpet
-  ruby-openai
-  sinatra (~> 1.4.7)
+  sinatra
   sinatra-contrib
   sinatra-cross_origin
 

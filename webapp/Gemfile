@@ -3,18 +3,18 @@
 source "https://rubygems.org"
 
 ruby "3.1.2"
-group :production do
-  gem "puma"
-end
-gem "sinatra", "~>1.4.7"
+
+gem "puma"
+
+gem "sinatra"
 gem "sinatra-contrib"
+gem 'nokogiri'
 gem "erubis"
-gem "rack-test"
 gem "redcarpet"
 gem "aws-sdk-s3", "~> 1.132"
 gem "mysql2"
 gem "sinatra-cross_origin"
-gem "ruby-openai"
 gem "down"
 gem 'googleauth'
 gem 'jwt'
+gem "redis"
