@@ -12,7 +12,7 @@ class LanguageProcessingAI
       }
     end
 
-    uri = URI.parse('http://localhost:8001/chat_gpt')
+    uri = URI.parse('http://localhost:8081/chat_gpt')
     http = Net::HTTP.new(uri.host, uri.port)
 
     headers = {
@@ -129,7 +129,7 @@ end
 
 class SpeechRecogTransAI
   def self.generate_response(audio_file_url)
-    url = URI("http://localhost:8002/invocations")
+    url = URI("http://localhost:8080/invocations")
 
     http = Net::HTTP.new(url.host, url.port)
 
