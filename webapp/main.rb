@@ -155,7 +155,9 @@ get '/protected/get_upload_url_for_client' do
   session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
   
+
   file_name = "recording_#{db_connection.create_uuid}.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
+
   
   audio_file_url = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client', :put)
 
@@ -207,6 +209,7 @@ post '/protected/listen_correction' do
 end
 
 
+
 def combine_sections(interlocutor_sections, corrector_sections)
   result = []
   user = interlocutor_sections.select{ |row| row[:role] == 'user' }
@@ -214,6 +217,7 @@ def combine_sections(interlocutor_sections, corrector_sections)
   corrector = corrector_sections.select{ |row| row[:role] == 'assistant' }
   user.each_with_index do |user_row, index|
     result << [[{role: user_row[:role], content: user_row[:content]},{role: corrector[index][:role], content: corrector[index][:content]}],{role: interlocutor[index][:role], content: interlocutor[index][:content]}]
+
   end
   result
 end
@@ -266,6 +270,7 @@ def language_processing_ai_process(user, user_text)
   interlocutor_response
 end
 
+
 def voice_generator_ai_process(user, input_text, db_connection)
   file_name = "recording_#{db_connection.create_uuid}.wav"
   path = "./public/audio_files/#{file_name}"
@@ -274,6 +279,7 @@ def voice_generator_ai_process(user, input_text, db_connection)
   response = VoiceGeneratorAI.generate_response(input_text)
   timestamp_output = user.timestamp
   
+
   File.open(path, 'wb') do |file|
     file.write(response)
   end
