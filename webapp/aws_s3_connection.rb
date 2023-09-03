@@ -26,14 +26,14 @@ class AwsS3
   
   end
 
-  def get_presigned_url_s3(file_name, folder)
+  def get_presigned_url_s3(file_name, folder, method)
     s3 = Aws::S3::Resource.new
 
     obj = s3.bucket(bucket_name).object("#{folder}/#{file_name}")
     
-    url = obj.presigned_url(:put, expires_in: 3600) # URL expires in 1 hour
+    url = obj.presigned_url(method, expires_in: 3600) # URL expires in 1 hour
     
-    { url: url, filename: file_name }
+    { url: url }   
   end
 
 end

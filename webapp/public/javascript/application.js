@@ -91,9 +91,7 @@ $(document).ready(function() {
       
       const data = await response.json();
       const uploadUrl = data.url;
-      const filename = data.file_name;
       console.log(uploadUrl)
-      console.log(filename)
       const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
   
       
@@ -104,14 +102,28 @@ $(document).ready(function() {
           'Content-Type' : 'audio/wav'
         },
       });
-      
+
+
       alert('Recording uploaded successfully to S3!');
+      uploadSuccess();
+      
+      startUpdateLoop();
     } catch (error) {
       alert('An error occurred while uploading the recording.');
       console.error(error);
     }
-    startUpdateLoop();
+
+    
   });
+
+  async function uploadSuccess() {
+    fetch('/protected/audio_file_upload_success', {
+      method: 'GET'
+    });
+
+  }
+
+  
   
   function startUpdateLoop() {
     const historyList = document.getElementById('historyList')
@@ -136,7 +148,7 @@ $(document).ready(function() {
         .catch(error => {
           console.error('Error updating conversation status:', error);
         });
-    }, 5000); // Polling every 5 seconds
+    }, 2000); // Polling every 5 seconds
   }
 
   function downloadAndPlayAudio(audio_file_name) {
