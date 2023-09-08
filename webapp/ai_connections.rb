@@ -11,6 +11,9 @@ class LanguageProcessingAI
         sections: instance.conversation
       }
     end
+    puts
+    puts instance_list
+    puts
 
     uri = URI.parse('http://localhost:8081/chat_gpt')
     http = Net::HTTP.new(uri.host, uri.port)
@@ -26,14 +29,10 @@ class LanguageProcessingAI
     }
 
 
-    puts payload.to_json
-
     response = http.post(uri.path, payload.to_json, headers)
     response_body = JSON.parse(response.body)
     answer = []
-    puts
-    p response_body
-    puts
+
     response_body.each do |instance_name, data|
       answer << data['content']
     end
@@ -139,7 +138,7 @@ class SpeechRecogTransAI
 
     response = http.request(request)
     responsebody = JSON.parse(response.body)
-    p responsebody['predictions']['segments'][0][4]
+    responsebody['predictions']['segments'][0][4]
     
   end
 end

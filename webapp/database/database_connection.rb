@@ -8,7 +8,7 @@ class DatabaseConnection
     connect_to_db(db_config)
   end
 
-  def connect_to_db
+  def connect_to_db(db_config)
     retry_time = 5
     begin
       retries ||= 0
@@ -45,8 +45,8 @@ class DatabaseConnection
     
     query("CREATE TABLE IF NOT EXISTS iteration_data(
       user_id VARCHAR(50),
-      iteration_id VARCHAR(50),
       conversation_id VARCHAR(50),
+      iteration_id VARCHAR(50),
       speech_recognition_transcription_ai_audio_file_key VARCHAR(255),
       speech_recognition_transcription_ai_output_text VARCHAR(2000),
       language_processing_ai_interlocutor_output_text VARCHAR(2000),
@@ -75,6 +75,7 @@ class DatabaseConnection
   end
 
   def update_iteration_data(user_id, conversation_id, iteration_id, iteration_obj)
+    p iteration_obj
     user_text = escape(iteration_obj.speech_recognition_transcription_ai_output_text)
     interlocutor_output_text = escape(iteration_obj.language_processing_ai_interlocutor_output_text)
     corrector_output_text = escape(iteration_obj.language_processing_ai_corrector_output_text)
@@ -86,24 +87,25 @@ class DatabaseConnection
     result.first.nil? ? [] : result.first['user_id']
   end
   
-  def create_conversation(user_id, conversation_id, name, default_picture, picture_changed, start_text, timestamp, status_code)
+  def create_conversation(user_id, conversation_id, name, default_picture, timestamp, status_code)
     name = escape(name)
-    start_text = escape(start_text)
-    query("INSERT INTO conversations(user_id, conversation_id, conversation_name, conversation_picture, conversation_picture_changed, interlocutor_conversation, corrector_conversation, timestamp_start, status_code) VALUES('#{user_id}', '#{conversation_id}', '#{name}', '#{default_picture}', '#{picture_changed}','#{start_text}', '#{start_text}','#{timestamp}', '#{status_code}')")
+    query("INSERT INTO conversations(user_id, conversation_id, conversation_name, conversation_picture, timestamp_start, status_code) VALUES('#{user_id}', '#{conversation_id}', '#{name}', '#{default_picture}', '#{timestamp}', '#{status_code}')")
   end
 
   def delete_conversation(conversation_id, status_code, timestamp)
     query("UPDATE conversations SET status_code = '#{status_code}', timestamp_deleted = '#{timestamp}' WHERE conversation_id = '#{conversation_id}';")
   end
   
-  def select_conversation_id_and_name_and_picture_and_picture_changed(user_id, status_code)
-    query("SELECT conversation_id, conversation_name, conversation_picture, conversation_picture_changed FROM conversations WHERE user_id = '#{user_id}' AND status_code = '#{status_code}';")
+  def select_conversation_id_and_name_and_picture(user_id, status_code)
+    query("SELECT conversation_id, conversation_name, conversation_picture FROM conversations WHERE user_id = '#{user_id}' AND status_code = '#{status_code}';")
   end
 
   def load_interlocutor_sections(conversation_id)
+    p conversation_id
     sections = []
     result = query("SELECT speech_recognition_transcription_ai_output_text, language_processing_ai_interlocutor_output_text FROM iteration_data WHERE conversation_id = '#{conversation_id}'")
     result.each do |row|
+      p row
       sections << {'role' => 'user', 'content' => row['speech_recognition_transcription_ai_output_text']}
       sections << {'role' => 'assistant', 'content' => row['language_processing_ai_interlocutor_output_text']}
     end

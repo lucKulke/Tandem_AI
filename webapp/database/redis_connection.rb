@@ -14,14 +14,26 @@ class RedisConnection
     redis.get(key)
   end
 
-  def create_cache(user_id, interlocutor_sections, corrector_sections, conversation_id)
+  def del(key)
+    redis.del(key)
+  end
+
+  def reset_cache_for_user(user_id)
+    self.del("speech_recognition_transcription_ai_audio_file_key_#{user_id}")
+    self.del("speech_recognition_transcription_ai_output_text_#{user_id}")
+    self.del("language_processing_ai_interlocutor_output_text_#{user_id}")
+    self.del("language_processing_ai_corrector_output_text_#{user_id}")
+    self.del("voice_generator_ai_audio_file_key_#{user_id}")
+  end
+
+  def create_cache(user_id, conversation_id, interlocutor_sections, corrector_sections)
     self.set("interlocutor_sections_#{user_id}", interlocutor_sections.to_json)
     self.set("corrector_sections_#{user_id}", corrector_sections.to_json)
-    self.set("conversation_id_#{user_id}", conversation_id)
+    self.set("conversation_id_#{user_id}", conversation_id) unless conversation_id.nil?
   end
 
   def update_sections(user_id, interlocutor_sections, corrector_sections)
-    self.create_cache(user_id, interlocutor_sections, corrector_sections)
+    self.create_cache(user_id, nil, interlocutor_sections, corrector_sections)
   end
 
   def connect_to_redis_server(host, port, db)

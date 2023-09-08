@@ -18,6 +18,7 @@ require "redis"
 
 require_relative "./database/database_connection"
 require_relative "./database/redis_connection"
+require_relative "iteration_data"
 require_relative "ai_connections"
 require_relative "user"
 require_relative "aws_s3_connection"
@@ -33,7 +34,7 @@ DB_CONFIG = {
   database: ENV['DB_NAME']
 }
 
-db_connection = DatabaseConnection.new(db_config, logger)
+db_connection = DatabaseConnection.new(DB_CONFIG, logger)
 db_connection.create_tables
 
 redis_connection = RedisConnection.new(ENV['REDIS_HOST'], ENV['REDIS_PORT'], ENV['REDIS_DB'], logger)
@@ -70,17 +71,18 @@ end
 get '/protected/conversation_list' do
   user_id = session[:user_id]
   @user = load_user(user_id, db_connection)
+   @user
 
   if session[:conversation_changed] == true 
-    conversation_id = session[:last_conversation]
+    conversation_id = session[:current_conversation_id]
     conversation = @user.select_conversation(conversation_id)
-    conversation.name = LanguageProcessingAI.generate_response(12, Summarizer.new(@user.current_conversation.interlocutor_sections.dup))
-    session[:picture_changeable] = true
+    conversation.name = LanguageProcessingAI.generate_response(12, Summarizer.new(conversation.interlocutor_sections.dup))
+    session[:picture_changeable] = conversation_id
     db_connection.update_conversation_name(conversation_id, conversation.name)
     session[:conversation_changed] = false
   end
 
-  session[:last_conversation] = nil
+  session[:current_conversation_id] = nil
   
   erb :conversation_list
 end
@@ -103,12 +105,15 @@ end
 
 get '/protected/conversation/:conversation_id' do
   user_id = session[:user_id]
+  conversation_id = params['conversation_id']
+  session[:current_conversation_id] = conversation_id
   @user = load_user(user_id, db_connection)
-  @user.enter_conversation(params['conversation_id'])
-  conversation = @user.select_current_conversation
+
+  conversation = @user.select_conversation(conversation_id)
+
   @conversation = combine_sections(conversation.interlocutor_sections, conversation.corrector_sections)
 
-  redis_connection.create_cache(user_id, conversation.interlocutor_sections, conversation.corrector_sections, conversation.conversation_id)
+  redis_connection.create_cache(user_id, conversation.id, conversation.interlocutor_sections, conversation.corrector_sections)
 
   erb :conversation
 end 
@@ -124,10 +129,12 @@ end
 get '/protected/conversation/:id/new_picture' do
   conversation_id = params['id']
   user_id = session[:user_id]
+  user = load_user(user_id, db_connection)
+  conversation = user.select_conversation(conversation_id)
+  
+  picture = Artist.create_image(conversation.name)
 
-  picture = Artist.create_image(user.current_conversation.name)
-
-  session[:picture_changeable] = false
+  session[:picture_changeable] = nil
   db_connection.update_conversation_picture(conversation_id, picture)
 
   status 200
@@ -137,8 +144,9 @@ get '/protected/iteration_end' do
   user_id = session[:user_id]
   if request.env['HTTP_ITERATION_END'] == 'true'
     iteration_id = db_connection.create_uuid
-    conversation_id = redis_connection.get("conversation_id_#{user_id}")
+    conversation_id = session[:current_conversation_id]
     db_connection.update_iteration_data(user_id, conversation_id , iteration_id, IterationData.new(user_id, redis_connection))
+    session[:conversation_changed] = true
   end
   status 201
 end
@@ -172,9 +180,7 @@ end
 get '/protected/get_upload_url_for_client' do
   user_id = session[:user_id]
   user = load_user(user_id, db_connection)
-  session[:conversation_changed] = true
-  session[:last_conversation] = user.current_conversation_id
-  user.current_conversation.reset
+  
   
 
   file_name = "recording_#{db_connection.create_uuid}.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
@@ -182,7 +188,9 @@ get '/protected/get_upload_url_for_client' do
   
   audio_file_url = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client', :put)
 
+  redis_connection.reset_cache_for_user(user_id)
   redis_connection.set("speech_recognition_transcription_ai_audio_file_key_#{user_id}", file_name)
+  
   content_type :json
   audio_file_url.to_json
 end
@@ -206,7 +214,8 @@ post '/auth-receiver' do
     auth = decoded_token[0]['sub']
 
     user_id = db_connection.search_user_id(auth)
-    if user_id.nil?
+    
+    if user_id.empty?
       user_id = db_connection.create_uuid
       db_connection.create_user(auth, user_id)
     end
@@ -238,11 +247,11 @@ end
 
 def combine_sections(interlocutor_sections, corrector_sections)
   result = []
-  user = interlocutor_sections.select{ |row| row[:role] == 'user' }
-  interlocutor = interlocutor_sections.select{ |row| row[:role] == 'assistant' }
-  corrector = corrector_sections.select{ |row| row[:role] == 'assistant' }
+  user = interlocutor_sections.select{ |row| row['role'] == 'user' }
+  interlocutor = interlocutor_sections.select{ |row| row['role'] == 'assistant' }
+  corrector = corrector_sections.select{ |row| row['role'] == 'assistant' }
   user.each_with_index do |user_row, index|
-    result << [[{role: user_row[:role], content: user_row[:content]},{role: corrector[index][:role], content: corrector[index][:content]}],{role: interlocutor[index][:role], content: interlocutor[index][:content]}]
+    result << [[{'role' => user_row['role'], 'content' => user_row['content']},{'role' => corrector[index]['role'], 'content' => corrector[index]['content']}],{'role' => interlocutor[index]['role'], 'content' => interlocutor[index]['content']}]
 
   end
   result
@@ -266,6 +275,8 @@ def language_processing_ai_process(user_id, user_text, cache)
   interlocutor_conversation = JSON.parse(cache.get("interlocutor_sections_#{user_id}")) #{role: 'user', content: input_text}
   corrector_conversation = JSON.parse(cache.get("corrector_sections_#{user_id}"))
 
+  interlocutor_conversation << { 'role' => 'user' , 'content' => user_text}
+  corrector_conversation << { 'role' => 'user' , 'content' => user_text}
 
   corrector_response, interlocutor_response = LanguageProcessingAI.generate_response(100, Corrector.new(corrector_conversation), Interlocutor.new(interlocutor_conversation))
   
@@ -282,7 +293,7 @@ def language_processing_ai_process(user_id, user_text, cache)
 end
 
 
-def voice_generator_ai_process(user, input_text, db_connection, cache)
+def voice_generator_ai_process(user_id, input_text, db_connection, cache)
   file_name = "recording_#{db_connection.create_uuid}.wav"
   path = "./public/audio_files/#{file_name}"
   
