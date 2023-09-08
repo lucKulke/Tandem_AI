@@ -14,9 +14,10 @@ require "down"
 require "googleauth"
 require "jwt"
 require "logger"
+require "redis"
 
 require_relative "./database/database_connection"
-require_relative "incomming_status_information_data_storage"
+require_relative "./database/redis_connection"
 require_relative "ai_connections"
 require_relative "user"
 require_relative "aws_s3_connection"
@@ -24,11 +25,18 @@ require_relative "aws_s3_connection"
 logger = Logger.new(STDOUT)
 logger.level = Logger::INFO
 
+DB_CONFIG = {
+  host: ENV['DB_HOST'],
+  port: ENV['DB_PORT'],
+  username: ENV['DB_USERNAME'],
+  password: ENV['DB_PASSWORD'],
+  database: ENV['DB_NAME']
+}
 
-db_connection = DatabaseConnection.new
+db_connection = DatabaseConnection.new(db_config, logger)
 db_connection.create_tables
 
-active_user_list = ActiveUserList.new
+redis_connection = RedisConnection.new(ENV['REDIS_HOST'], ENV['REDIS_PORT'], ENV['REDIS_DB'], logger)
 
 access_key = ENV['AWS_IAM_USER_TEST_ACCESS_KEY']
 secret_key = ENV['AWS_IAM_USER_TEST_SECRET_ACCESS_KEY']
@@ -60,64 +68,77 @@ end
 
 
 get '/protected/conversation_list' do
-  @user = active_user_list.load_user(session[:user_id])
+  user_id = session[:user_id]
+  @user = load_user(user_id, db_connection)
 
   if session[:conversation_changed] == true 
-    @user.conversations.each do |conversation|
-      if conversation.conversation_id == session[:last_conversation]
-        conversation.picture_changed = true
-        conversation.name = LanguageProcessingAI.generate_response(12, Summarizer.new(@user.current_conversation.interlocutor_sections.dup)) 
-      end
-    end
+    conversation_id = session[:last_conversation]
+    conversation = @user.select_conversation(conversation_id)
+    conversation.name = LanguageProcessingAI.generate_response(12, Summarizer.new(@user.current_conversation.interlocutor_sections.dup))
+    session[:picture_changeable] = true
+    db_connection.update_conversation_name(conversation_id, conversation.name)
     session[:conversation_changed] = false
   end
-  @user.update_conversation_table(db_connection, session[:last_conversation]) if !session[:last_conversation].nil?
+
   session[:last_conversation] = nil
   
   erb :conversation_list
 end
 
 get '/protected/conversation/update_status' do
-  user = active_user_list.load_user(session[:user_id])
+  user_id = session[:user_id]
+  
+  response = IterationData.new(user_id ,redis_connection)
   
   content_type :json
-  user.current_conversation.client_information.to_json
+  response.create.to_json
 end
 
 get '/protected/conversation/create' do 
-  user = active_user_list.load_user(session[:user_id])
+  user_id = session[:user_id]
+  user = load_user(user_id, db_connection)
   user.create_conversation(db_connection)
   redirect '/protected/conversation_list'
 end
 
 get '/protected/conversation/:conversation_id' do
-  @user = active_user_list.load_user(session[:user_id])
+  user_id = session[:user_id]
+  @user = load_user(user_id, db_connection)
   @user.enter_conversation(params['conversation_id'])
-  @conversation = combine_sections(@user.current_conversation.interlocutor_sections, @user.current_conversation.corrector_sections)
+  conversation = @user.select_current_conversation
+  @conversation = combine_sections(conversation.interlocutor_sections, conversation.corrector_sections)
+
+  redis_connection.create_cache(user_id, conversation.interlocutor_sections, conversation.corrector_sections, conversation.conversation_id)
 
   erb :conversation
 end 
 
 get '/protected/conversation/:id/delete' do
-  user = active_user_list.load_user(session[:user_id])
-  user.delete_conversation(params['id'], db_connection)
+  user_id = session[:user_id]
+  user = load_user(user_id, db_connection)
+  conversation_id = params['id']
+  user.delete_conversation(conversation_id, db_connection)
   redirect '/protected/conversation_list'
 end
 
 get '/protected/conversation/:id/new_picture' do
   conversation_id = params['id']
-  user = active_user_list.load_user(session[:user_id])
+  user_id = session[:user_id]
+
   picture = Artist.create_image(user.current_conversation.name)
-  user.current_conversation.picture = picture
-  user.update_conversation_picture(db_connection, conversation_id, picture)
-  user.current_conversation.picture_changed = false
+
+  session[:picture_changeable] = false
+  db_connection.update_conversation_picture(conversation_id, picture)
+
   status 200
 end
 
 get '/protected/iteration_end' do
+  user_id = session[:user_id]
   if request.env['HTTP_ITERATION_END'] == 'true'
-    user = active_user_list.load_user(session[:user_id]) 
-    user.upload_conversation_to_db(db_connection)
+    iteration_id = db_connection.create_uuid
+    conversation_id = redis_connection.get("conversation_id_#{user_id}")
+    db_connection.update_iteration_data(user_id, conversation_id , iteration_id, IterationData.new(user_id, redis_connection))
   end
   status 201
 end
@@ -128,20 +149,19 @@ get '/protected/audio_file/:audio_file' do
 end
 
 get '/protected/audio_file_upload_success' do 
-  user = active_user_list.load_user(session[:user_id])
-  
+  user_id = session[:user_id]
   time_start = Time.now
-  user_text = speech_recognition_transcription_ai_process(user, aws_s3_connection)
+  user_text = speech_recognition_transcription_ai_process(user_id, aws_s3_connection, redis_connection)
   time_end = Time.now
   logger.info("Time for speech_recog_trans_ai: #{time_end - time_start}")
   
   time_start = Time.now
-  interlocutor_text = language_processing_ai_process(user, user_text)
+  interlocutor_text = language_processing_ai_process(user_id, user_text, redis_connection)
   time_end = Time.now
   logger.info("Time for language_processing_ai: #{time_end - time_start}")
 
   time_start = Time.now
-  voice_generator_ai_process(user, interlocutor_text, db_connection)
+  voice_generator_ai_process(user_id, interlocutor_text, db_connection, redis_connection)
   time_end = Time.now
   logger.info("Time for voice_generation_ai: #{time_end - time_start}")
   
@@ -150,7 +170,8 @@ end
 
 
 get '/protected/get_upload_url_for_client' do
-  user = active_user_list.load_user(session[:user_id])
+  user_id = session[:user_id]
+  user = load_user(user_id, db_connection)
   session[:conversation_changed] = true
   session[:last_conversation] = user.current_conversation_id
   user.current_conversation.reset
@@ -161,7 +182,7 @@ get '/protected/get_upload_url_for_client' do
   
   audio_file_url = aws_s3_connection.get_presigned_url_s3(file_name, 'upload_client', :put)
 
-  user.current_conversation.data[:speech_recognition_transcription_ai_audio_file_key] = file_name
+  redis_connection.set("speech_recognition_transcription_ai_audio_file_key_#{user_id}", file_name)
   content_type :json
   audio_file_url.to_json
 end
@@ -182,9 +203,14 @@ post '/auth-receiver' do
       aud: allowed_client_ids
     )
 
-    user_info = decoded_token[0]
+    auth = decoded_token[0]['sub']
 
-    user_id = active_user_list.add_user(user_info['sub'], db_connection)
+    user_id = db_connection.search_user_id(auth)
+    if user_id.nil?
+      user_id = db_connection.create_uuid
+      db_connection.create_user(auth, user_id)
+    end
+    
     session[:user_id] = user_id
     session[:logged_in?] = true
     
@@ -223,80 +249,60 @@ def combine_sections(interlocutor_sections, corrector_sections)
 end
 
 
-def speech_recognition_transcription_ai_process(user, aws_s3_connection)
-  conversation = user.current_conversation
-  audio_file_key = conversation.data[:speech_recognition_transcription_ai_audio_file_key]
+def speech_recognition_transcription_ai_process(user_id, aws_s3_connection, cache)
+
+  audio_file_key = cache.get("speech_recognition_transcription_ai_audio_file_key_#{user_id}")
   audio_file_url = aws_s3_connection.get_presigned_url_s3(audio_file_key, 'upload_client', :get)[:url]
   
-  timestamp_input = user.timestamp
   response = SpeechRecogTransAI.generate_response(audio_file_url)
-  timestamp_output = user.timestamp
-  healthcode = 200
 
-  conversation.save_speech_recognition_transcription_ai_data(
-    user.user_id, 
-    output_text: response, 
-    timestamp_input: timestamp_input, 
-    timestamp_output: timestamp_output, 
-    healthcode: healthcode
-  )
+  cache.set("speech_recognition_transcription_ai_output_text_#{user_id}", response)
+  
   response
 end
 
-def language_processing_ai_process(user, user_text)
-  conversation = user.current_conversation
-  conversation.interlocutor_sections << {role: 'user', content: user_text}
-  conversation.corrector_sections << {role: 'user', content: user_text}
-
-  interlocutor_conversation = conversation.interlocutor_sections.dup #{role: 'user', content: input_text}
-  corrector_conversation = conversation.corrector_sections.dup
-
-  timestamp_input = user.timestamp
-  corrector_response, interlocutor_response = LanguageProcessingAI.generate_response(100, Corrector.new(corrector_conversation), Interlocutor.new(interlocutor_conversation))
-  timestamp_output = user.timestamp
-  healthcode = 200
-  conversation.interlocutor_sections << {role: 'assistant', content: interlocutor_response}
-  conversation.corrector_sections << {role: 'assistant', content: corrector_response}
+def language_processing_ai_process(user_id, user_text, cache)
   
-  conversation.save_language_processing_ai_data(
-    user.user_id, 
-    input_text: user_text,
-    interlocutor_output_text: interlocutor_response,
-    corrector_output_text: corrector_response,
-    timestamp_input: timestamp_input, 
-    timestamp_output: timestamp_output, 
-    healthcode: healthcode
-  )
+  interlocutor_conversation = JSON.parse(cache.get("interlocutor_sections_#{user_id}")) #{role: 'user', content: input_text}
+  corrector_conversation = JSON.parse(cache.get("corrector_sections_#{user_id}"))
+
+
+  corrector_response, interlocutor_response = LanguageProcessingAI.generate_response(100, Corrector.new(corrector_conversation), Interlocutor.new(interlocutor_conversation))
+  
+
+  interlocutor_conversation << {'role' => 'assistant', 'content' => interlocutor_response}
+  corrector_conversation << {'role' => 'assistant', 'content' => corrector_response}
+  
+  cache.set("language_processing_ai_interlocutor_output_text_#{user_id}", interlocutor_response)
+  cache.set("language_processing_ai_corrector_output_text_#{user_id}", corrector_response)
+  cache.update_sections(user_id, interlocutor_conversation, corrector_conversation)
+  
+  
   interlocutor_response
 end
 
 
-def voice_generator_ai_process(user, input_text, db_connection)
+def voice_generator_ai_process(user, input_text, db_connection, cache)
   file_name = "recording_#{db_connection.create_uuid}.wav"
   path = "./public/audio_files/#{file_name}"
   
-  timestamp_input = user.timestamp
+ 
   response = VoiceGeneratorAI.generate_response(input_text)
-  timestamp_output = user.timestamp
-  
 
+  
   File.open(path, 'wb') do |file|
     file.write(response)
   end
   
-  user.current_conversation.save_voice_generator_ai_data(
-    user.user_id,
-    input_text: input_text, 
-    audio_file_key: file_name,
-    timestamp_input: timestamp_input,
-    timestamp_output: timestamp_output,
-    healthcode: 200
-  )
+  cache.set("voice_generator_ai_audio_file_key_#{user_id}", file_name)
 
   file_name
 
 end
 
+def load_user(user_id, db_connection)
+  User.new(user_id, db_connection)
+end
 
 
 

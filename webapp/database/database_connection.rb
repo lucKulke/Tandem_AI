@@ -1,29 +1,26 @@
 require "mysql2"
 
 class DatabaseConnection
+  attr_reader :logger
 
-  DB_CONFIG = {
-    host: ENV['DB_HOST'],
-    port: ENV['DB_PORT'],
-    username: ENV['DB_USERNAME'],
-    password: ENV['DB_PASSWORD'],
-    database: ENV['DB_NAME']
-  }
+  def initialize(db_config, logger)
+    @logger = logger
+    connect_to_db(db_config)
+  end
 
-  def initialize
+  def connect_to_db
+    retry_time = 5
     begin
       retries ||= 0
       @db = Mysql2::Client.new(DB_CONFIG)
     rescue Mysql2::Error => e
-      puts e
-      puts "MySQL server not ready yet, retrying in 20 second "
-      sleep 20
+      logger.error("Mysql connection error: #{e} \nRetry in #{retry_time}")
+      sleep retry_time
       retries += 1
-      if retries == 3
-        retry
-      end
-      
+      retry unless retries == 3
+      raise Mysql2:Error      
     end
+    logger.info("Connected to Mysql db!")
   end
 
   def establish
@@ -40,44 +37,22 @@ class DatabaseConnection
       conversation_id VARCHAR(50),
       conversation_name VARCHAR(80),
       conversation_picture VARCHAR(100),
-      interlocutor_conversation MEDIUMTEXT,
-      corrector_conversation MEDIUMTEXT,
       timestamp_start DATETIME,
       timestamp_paused DATETIME,
       timestamp_joined DATETIME,
       timestamp_deleted DATETIME,
       status_code INT);")
     
-    query("CREATE TABLE IF NOT EXISTS speech_recognition_transcription_ai(
+    query("CREATE TABLE IF NOT EXISTS iteration_data(
       user_id VARCHAR(50),
       iteration_id VARCHAR(50),
       conversation_id VARCHAR(50),
-      audio_file_key VARCHAR(255),
-      output_text VARCHAR(2000),
-      timestamp_input DATETIME,
-      timestamp_output DATETIME,
-      healthcode INT);")
-    
-    query("CREATE TABLE IF NOT EXISTS voice_generator_ai(
-      user_id VARCHAR(50),
-      iteration_id VARCHAR(50),
-      conversation_id VARCHAR(50),
-      input_text VARCHAR(2000),
-      audio_file_key VARCHAR(2000),
-      timestamp_input DATETIME,
-      timestamp_output DATETIME,
-      healthcode INT);")
-    
-    query("CREATE TABLE IF NOT EXISTS language_processing_ai(
-      user_id VARCHAR(50),
-      iteration_id VARCHAR(50),
-      conversation_id VARCHAR(50),
-      input_text VARCHAR(2000),
-      interlocutor_output_text VARCHAR(2000),
-      corrector_output_text VARCHAR(2000),
-      timestamp_input DATETIME,
-      timestamp_output DATETIME,
-      healthcode INT);")
+      speech_recognition_transcription_ai_audio_file_key VARCHAR(255),
+      speech_recognition_transcription_ai_output_text VARCHAR(2000),
+      language_processing_ai_interlocutor_output_text VARCHAR(2000),
+      language_processing_ai_corrector_output_text VARCHAR(2000),
+      voice_generator_ai_audio_file_key VARCHAR(255)
+      );")
     
   end
 
@@ -99,90 +74,59 @@ class DatabaseConnection
     uuid 
   end
 
+  def update_iteration_data(user_id, conversation_id, iteration_id, iteration_obj)
+    user_text = escape(iteration_obj.speech_recognition_transcription_ai_output_text)
+    interlocutor_output_text = escape(iteration_obj.language_processing_ai_interlocutor_output_text)
+    corrector_output_text = escape(iteration_obj.language_processing_ai_corrector_output_text)
+    query("INSERT INTO iteration_data VALUES('#{user_id}', '#{conversation_id}', '#{iteration_id}', '#{iteration_obj.speech_recognition_transcription_ai_audio_file_key}', '#{user_text}', '#{interlocutor_output_text}', '#{corrector_output_text}', '#{iteration_obj.voice_generator_ai_audio_file_key}')")
+  end
+
   def search_user_id(google_auth)
     result = query("SELECT user_id FROM users WHERE google_auth = '#{google_auth}';")
     result.first.nil? ? [] : result.first['user_id']
   end
   
-  def create_conversation(user_id, conversation_id, name, default_picture, start_text, timestamp, status_code)
+  def create_conversation(user_id, conversation_id, name, default_picture, picture_changed, start_text, timestamp, status_code)
     name = escape(name)
     start_text = escape(start_text)
-    query("INSERT INTO conversations(user_id, conversation_id, conversation_name, conversation_picture, interlocutor_conversation, corrector_conversation, timestamp_start, status_code) VALUES('#{user_id}', '#{conversation_id}', '#{name}', '#{default_picture}','#{start_text}', '#{start_text}','#{timestamp}', '#{status_code}')")
+    query("INSERT INTO conversations(user_id, conversation_id, conversation_name, conversation_picture, conversation_picture_changed, interlocutor_conversation, corrector_conversation, timestamp_start, status_code) VALUES('#{user_id}', '#{conversation_id}', '#{name}', '#{default_picture}', '#{picture_changed}','#{start_text}', '#{start_text}','#{timestamp}', '#{status_code}')")
   end
 
   def delete_conversation(conversation_id, status_code, timestamp)
     query("UPDATE conversations SET status_code = '#{status_code}', timestamp_deleted = '#{timestamp}' WHERE conversation_id = '#{conversation_id}';")
   end
   
-  def select_conversation_id_and_name_and_picture(user_id, status_code)
-    query("SELECT conversation_id, conversation_name, conversation_picture FROM conversations WHERE user_id = '#{user_id}' AND status_code = '#{status_code}';")
+  def select_conversation_id_and_name_and_picture_and_picture_changed(user_id, status_code)
+    query("SELECT conversation_id, conversation_name, conversation_picture, conversation_picture_changed FROM conversations WHERE user_id = '#{user_id}' AND status_code = '#{status_code}';")
   end
 
   def load_interlocutor_sections(conversation_id)
     sections = []
-    result = query("SELECT input_text, interlocutor_output_text FROM language_processing_ai WHERE conversation_id = '#{conversation_id}'")
+    result = query("SELECT speech_recognition_transcription_ai_output_text, language_processing_ai_interlocutor_output_text FROM iteration_data WHERE conversation_id = '#{conversation_id}'")
     result.each do |row|
-      sections << {role: 'user', content: row['input_text']}
-      sections << {role: 'assistant', content: row['interlocutor_output_text']}
+      sections << {'role' => 'user', 'content' => row['speech_recognition_transcription_ai_output_text']}
+      sections << {'role' => 'assistant', 'content' => row['language_processing_ai_interlocutor_output_text']}
     end
     sections
   end
 
   def load_corrector_sections(conversation_id)
     sections = []
-    result = query("SELECT input_text, corrector_output_text FROM language_processing_ai WHERE conversation_id = '#{conversation_id}'")
+    result = query("SELECT speech_recognition_transcription_ai_output_text, language_processing_ai_corrector_output_text FROM iteration_data WHERE conversation_id = '#{conversation_id}'")
     result.each do |row|
-      sections << {role: 'user', content: row['input_text']}
-      sections << {role: 'assistant', content: row['corrector_output_text']}
+      sections << {'role' => 'user', 'content' => row['speech_recognition_transcription_ai_output_text']}
+      sections << {'role' => 'assistant', 'content' => row['language_processing_ai_corrector_output_text']}
     end
     sections
   end
 
-  def update_conversation_table(conversation_id, name, picture,interlocutor_text, corrector_text)
+  def update_conversation_name(conversation_id, name)
     name = escape(name)
-    interlocutor_text = escape(interlocutor_text)
-    corrector_text = escape(corrector_text)
-    query("UPDATE conversations SET interlocutor_conversation = '#{interlocutor_text}', corrector_conversation = '#{corrector_text}', conversation_name = '#{name}', conversation_picture = '#{picture}' WHERE conversation_id = '#{conversation_id}';")
+    query("UPDATE conversations SET conversation_name = '#{name}' WHERE conversation_id = '#{conversation_id}'")
   end
 
   def update_conversation_picture(conversation_id, picture)
     query("UPDATE conversations SET conversation_picture = '#{picture}' WHERE conversation_id = '#{conversation_id}'")
-  end
-
-  def upload_speech_recognition_transcription_ai_data(user_id, iteration_id, conversation_id, audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)
-    output_text = escape(output_text)
-    query("INSERT INTO speech_recognition_transcription_ai
-                        (user_id, iteration_id, conversation_id, audio_file_key, output_text, timestamp_input, timestamp_output, healthcode)
-                        VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}', 
-                        '#{audio_file_key}',
-                        '#{output_text}',
-                        '#{timestamp_input}', 
-                        '#{timestamp_output}',
-                        '#{healthcode}');")
-  end
-
-  def upload_language_processing_ai_data(user_id, iteration_id, conversation_id, input_text, interlocutor_output_text, corrector_output_text, timestamp_input, timestamp_output, healthcode)
-    input_text = escape(input_text)
-    interlocutor_output_text = escape(interlocutor_output_text)
-    corrector_output_text = escape(corrector_output_text)
-    query("INSERT INTO language_processing_ai 
-                        (user_id, iteration_id, conversation_id, input_text, interlocutor_output_text, corrector_output_text, timestamp_input, timestamp_output, healthcode) 
-                        VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}', '#{input_text}', '#{interlocutor_output_text}', '#{corrector_output_text}',
-                        '#{timestamp_input}', 
-                        '#{timestamp_output}', 
-                        '#{healthcode}');")
-  end
-
-  def upload_voice_generator_ai_data(user_id, iteration_id, conversation_id, input_text, audio_file_key, timestamp_input, timestamp_output, healthcode)
-    input_text = escape(input_text)
-    query("INSERT INTO voice_generator_ai
-                        (user_id, iteration_id, conversation_id, input_text, audio_file_key, timestamp_input, timestamp_output, healthcode)
-                        VALUES('#{user_id}', '#{iteration_id}', '#{conversation_id}',
-                        '#{input_text}',
-                        '#{audio_file_key}',
-                        '#{timestamp_input}', 
-                        '#{timestamp_output}',
-                        '#{healthcode}');")
   end
 
 
