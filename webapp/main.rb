@@ -71,7 +71,6 @@ end
 get '/protected/conversation_list' do
   user_id = session[:user_id]
   @user = load_user(user_id, db_connection)
-   @user
 
   if session[:conversation_changed] == true 
     conversation_id = session[:current_conversation_id]

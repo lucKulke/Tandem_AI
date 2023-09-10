@@ -75,7 +75,6 @@ class DatabaseConnection
   end
 
   def update_iteration_data(user_id, conversation_id, iteration_id, iteration_obj)
-    p iteration_obj
     user_text = escape(iteration_obj.speech_recognition_transcription_ai_output_text)
     interlocutor_output_text = escape(iteration_obj.language_processing_ai_interlocutor_output_text)
     corrector_output_text = escape(iteration_obj.language_processing_ai_corrector_output_text)
@@ -101,11 +100,9 @@ class DatabaseConnection
   end
 
   def load_interlocutor_sections(conversation_id)
-    p conversation_id
     sections = []
     result = query("SELECT speech_recognition_transcription_ai_output_text, language_processing_ai_interlocutor_output_text FROM iteration_data WHERE conversation_id = '#{conversation_id}'")
     result.each do |row|
-      p row
       sections << {'role' => 'user', 'content' => row['speech_recognition_transcription_ai_output_text']}
       sections << {'role' => 'assistant', 'content' => row['language_processing_ai_interlocutor_output_text']}
     end
