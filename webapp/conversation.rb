@@ -21,7 +21,4 @@ class Conversation
     }
   end
 
-
-
-
- 
+end

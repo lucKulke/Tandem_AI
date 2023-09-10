@@ -87,9 +87,11 @@ get '/protected/conversation_list' do
 end
 
 get '/protected/conversation/update_status' do
+  return status 404 unless session[:last_station] == 2
   user_id = session[:user_id]
-  
   response = IterationData.new(user_id ,redis_connection)
+  
+  session[:last_station] = 3 unless response.voice_generator_ai_audio_file_key.nil?
   
   content_type :json
   response.create.to_json
@@ -140,6 +142,8 @@ get '/protected/conversation/:id/new_picture' do
 end
 
 get '/protected/iteration_end' do
+  return status 404 unless session[:last_station] == 3
+  
   user_id = session[:user_id]
   if request.env['HTTP_ITERATION_END'] == 'true'
     iteration_id = db_connection.create_uuid
@@ -147,6 +151,8 @@ get '/protected/iteration_end' do
     db_connection.update_iteration_data(user_id, conversation_id , iteration_id, IterationData.new(user_id, redis_connection))
     session[:conversation_changed] = true
   end
+
+  session[:last_station] = nil
   status 201
 end
 
@@ -156,6 +162,9 @@ get '/protected/audio_file/:audio_file' do
 end
 
 get '/protected/audio_file_upload_success' do 
+  return status 404 unless session[:last_station] == 1
+  session[:last_station] = 2
+
   user_id = session[:user_id]
   time_start = Time.now
   user_text = speech_recognition_transcription_ai_process(user_id, aws_s3_connection, redis_connection)
@@ -177,11 +186,12 @@ end
 
 
 get '/protected/get_upload_url_for_client' do
+  return status 404 unless session[:last_station].nil? 
+  session[:last_station] = 1
+  
   user_id = session[:user_id]
   user = load_user(user_id, db_connection)
   
-  
-
   file_name = "recording_#{db_connection.create_uuid}.wav"#"recording_#{SecureRandom.uuid}.wav" # Generate a unique filename
 
   
