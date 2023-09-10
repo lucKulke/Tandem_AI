@@ -11,9 +11,6 @@ class LanguageProcessingAI
         sections: instance.conversation
       }
     end
-    puts
-    puts instance_list
-    puts
 
     uri = URI.parse('http://localhost:8081/chat_gpt')
     http = Net::HTTP.new(uri.host, uri.port)
